@@ -1,0 +1,27 @@
+{
+  "name": "level-editor",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@suis-ui/kit": "latest",
+    "@vanilla-extract/css": "^1.17.4",
+    "@vanilla-extract/dynamic": "^2.1.5",
+    "@vanilla-extract/recipes": "^0.5.7",
+    "nanostores": "^1.0.1",
+    "pixi.js": "^8.14.3",
+    "solid-js": "^1.9.10"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@vanilla-extract/vite-plugin": "^5.1.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.1.12",
+    "vite-plugin-solid": "^2.11.8"
+  }
+}
