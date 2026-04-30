@@ -1,100 +1,192 @@
-import { Application, Container, Graphics } from 'pixi.js';
-import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
-
-import { setCanvasReady } from '../../stores/editor';
+import { useStore } from '@nanostores/solid';
+import { Box, Button, Popup } from '@suis-ui/kit';
+import { createSignal } from 'solid-js';
+import type { Cell, LevelData } from '@/models/level';
+import { editorStore, setZoom } from '@/stores/editor';
+import type { EditorHistoryAction } from '@/stores/history';
 import * as styles from './pixi-viewport.css';
+import type { ContextMenuState, SelectionRect } from './types';
+import { usePixiEditorActions } from './use-pixi-editor-actions';
+import { usePixiScene } from './use-pixi-scene';
+import { usePixiViewportInput } from './use-pixi-viewport-input';
 
-type PixiViewportProps = {
-  zoom: number;
+export type PixiViewportProps = {
+  snapshot: LevelData;
+  onAction: (action: EditorHistoryAction) => void;
 };
 
-export function PixiViewport(props: PixiViewportProps) {
+export const PixiViewport = (props: PixiViewportProps) => {
   let host!: HTMLDivElement;
-  const [stageRoot, setStageRoot] = createSignal<Container | null>(null);
 
-  onMount(() => {
-    let disposed = false;
-    const app = new Application();
-    const grid = new Graphics();
-    const world = new Container();
-
-    const drawGrid = () => {
-      const width = host.clientWidth;
-      const height = host.clientHeight;
-
-      grid.clear();
-      grid.rect(0, 0, width, height).fill({ color: 0x101827 });
-
-      for (let x = 0; x <= width; x += 32) {
-        grid
-          .moveTo(x, 0)
-          .lineTo(x, height)
-          .stroke({ color: 0x263244, width: 1 });
-      }
-
-      for (let y = 0; y <= height; y += 32) {
-        grid
-          .moveTo(0, y)
-          .lineTo(width, y)
-          .stroke({ color: 0x263244, width: 1 });
-      }
-
-      grid.rect(32, 32, 96, 64).fill({ color: 0x1d4ed8, alpha: 0.64 });
-      grid.rect(160, 96, 128, 32).fill({ color: 0x047857, alpha: 0.72 });
-    };
-
-    const resizeObserver = new ResizeObserver(() => {
-      if (!app.renderer) {
-        return;
-      }
-
-      app.renderer.resize(host.clientWidth, host.clientHeight);
-      drawGrid();
-    });
-
-    void app
-      .init({
-        antialias: true,
-        autoDensity: true,
-        background: '#101827',
-        height: host.clientHeight,
-        resolution: window.devicePixelRatio || 1,
-        width: host.clientWidth,
-      })
-      .then(() => {
-        if (disposed) {
-          app.destroy();
-          return;
-        }
-
-        app.canvas.className = styles.pixiCanvas;
-        host.appendChild(app.canvas);
-        world.addChild(grid);
-        app.stage.addChild(world);
-        drawGrid();
-        resizeObserver.observe(host);
-        setStageRoot(world);
-        setCanvasReady(true);
-      });
-
-    onCleanup(() => {
-      disposed = true;
-      resizeObserver.disconnect();
-      setCanvasReady(false);
-      app.destroy(true);
-    });
+  const editor = useStore(editorStore);
+  const [hoverCell, setHoverCell] = createSignal<Cell | null>(null);
+  const [contextMenu, setContextMenu] = createSignal<ContextMenuState>({
+    open: false,
+    pointerX: 0,
+    pointerY: 0,
+    cell: { x: 0, y: 0 },
   });
+  const [dragDelta, setDragDelta] = createSignal<Cell | null>(null);
+  const [selectionRect, setSelectionRect] = createSignal<SelectionRect | null>(
+    null,
+  );
+  const [isPanning, setIsPanning] = createSignal(false);
 
-  createEffect(() => {
-    const root = stageRoot();
-
-    if (!root) {
-      return;
+  const activeLayerId = () => editor().activeLayerId;
+  const clipboard = () => editor().clipboard;
+  const selectedTool = () => editor().selectedTool;
+  const selection = () => editor().selection;
+  const snapshot = () => props.snapshot;
+  const zoom = () => editor().zoom;
+  const getHost = () => host;
+  const isDeleteDisabled = () => {
+    if (selection().length > 0) {
+      return false;
     }
 
-    const scale = props.zoom / 100;
-    root.scale.set(scale);
+    const menu = contextMenu();
+
+    return menu ? !actions.findTileAt(menu.cell) : false;
+  };
+
+  const actions = usePixiEditorActions({
+    activeLayerId,
+    clipboard,
+    onAction: props.onAction,
+    selection,
+    snapshot,
+  });
+  const sceneApi = usePixiScene({
+    activeLayerId,
+    clipboard,
+    contextMenu,
+    dragDelta,
+    getActiveTiles: actions.getActiveTiles,
+    getHost,
+    hoverCell,
+    selection,
+    selectionRect,
+    setZoom,
+    snapshot,
+    zoom,
+  });
+  const input = usePixiViewportInput({
+    actions,
+    contextMenu,
+    dragDelta,
+    getHost,
+    hoverCell,
+    scene: sceneApi.scene,
+    sceneApi,
+    selectedTool,
+    selection,
+    setContextMenu,
+    setDragDelta,
+    setHoverCell,
+    setIsPanning,
+    setSelectionRect,
+    setZoom,
+    zoom,
   });
 
-  return <div ref={host} class={styles.viewport} />;
-}
+  return (
+    <>
+      <div
+        ref={host}
+        class={styles.viewport}
+        classList={{
+          [styles.isPanTool]: selectedTool() === 'pan',
+          [styles.isPanning]: isPanning(),
+        }}
+      />
+      <Popup
+        open={contextMenu().open}
+        placement={'bottom-start'}
+        element={
+          <Box
+            as={'ul'}
+            role={'menu'}
+            align={'stretch'}
+            bg={'surface.main'}
+            bw={'md'}
+            bc={'surface.high'}
+            p={'xs'}
+            gap={'xs'}
+            r={'lg'}
+          >
+            <Box as={'li'} role={'presentation'}>
+              {`${contextMenu().cell.x}, ${contextMenu().cell.y}`}
+            </Box>
+            <Box as={'li'} role={'none'}>
+              <Button
+                w={'100%'}
+                type={'button'}
+                variant={'ghost'}
+                role={'menuitem'}
+                disabled={selection().length === 0}
+                onClick={input.handleMenuCopy}
+              >
+                {'Copy'}
+              </Button>
+            </Box>
+            <Box as={'li'} role={'none'}>
+              <Button
+                w={'100%'}
+                type={'button'}
+                variant={'ghost'}
+                role={'menuitem'}
+                disabled={!clipboard()}
+                onClick={input.handleMenuPaste}
+              >
+                {'Paste'}
+              </Button>
+            </Box>
+            <Box as={'li'} role={'none'}>
+              <Button
+                w={'100%'}
+                type={'button'}
+                variant={'ghost'}
+                role={'menuitem'}
+                disabled={isDeleteDisabled()}
+                onClick={input.handleMenuDelete}
+              >
+                {'Delete'}
+              </Button>
+            </Box>
+            <Box as={'li'} role={'none'}>
+              <Button
+                w={'100%'}
+                type={'button'}
+                variant={'ghost'}
+                role={'menuitem'}
+                disabled={selection().length === 0}
+                onClick={input.handleClearSelection}
+              >
+                {'Clear Selection'}
+              </Button>
+            </Box>
+            <Box as={'li'} role={'none'}>
+              <Button
+                w={'100%'}
+                type={'button'}
+                variant={'ghost'}
+                role={'menuitem'}
+                onClick={input.handleResetView}
+              >
+                {'Reset View'}
+              </Button>
+            </Box>
+          </Box>
+        }
+      >
+        <div
+          class={styles.contextMenu}
+          style={{
+            left: `${contextMenu().pointerX}px`,
+            top: `${contextMenu().pointerY}px`,
+          }}
+        />
+      </Popup>
+    </>
+  );
+};

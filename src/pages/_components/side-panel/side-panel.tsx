@@ -3,7 +3,11 @@ import { Box, Button } from '@suis-ui/kit';
 import * as styles from './side-panel.css';
 
 type SidePanelProps = {
+  canRedo: boolean;
+  canUndo: boolean;
   levelName: string;
+  onRedo: () => void;
+  onUndo: () => void;
 };
 
 export function SidePanel(props: SidePanelProps) {
@@ -38,6 +42,22 @@ export function SidePanel(props: SidePanelProps) {
       </div>
 
       <div class={styles.actionRow}>
+        <Button
+          variant={'default'}
+          size={'sm'}
+          disabled={!props.canUndo}
+          onClick={props.onUndo}
+        >
+          {'Undo'}
+        </Button>
+        <Button
+          variant={'default'}
+          size={'sm'}
+          disabled={!props.canRedo}
+          onClick={props.onRedo}
+        >
+          {'Redo'}
+        </Button>
         <Button variant={'default'} size={'sm'}>
           {'New'}
         </Button>

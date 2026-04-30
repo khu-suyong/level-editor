@@ -35,6 +35,7 @@ export const brandRow = style({
 export const actionRow = style({
   display: 'flex',
   alignItems: 'center',
+  flexWrap: 'wrap',
   gap: vars.size.space.sm,
   minWidth: 0,
 });

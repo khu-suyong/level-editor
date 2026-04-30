@@ -94,3 +94,10 @@ export const LevelDataSchema = z
       }
     }
   });
+
+/// types only
+
+export type Cell = {
+  x: number;
+  y: number;
+};
