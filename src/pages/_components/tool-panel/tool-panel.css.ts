@@ -1,42 +1,36 @@
 import { vars } from '@suis-ui/kit';
 import { style } from '@vanilla-extract/css';
 
-export const panel = style({
-  position: 'absolute',
+export const containerStyle = style({
+  position: 'fixed',
   zIndex: 10,
   left: '50%',
   bottom: vars.size.space.lg,
-  width: '22rem',
-  padding: vars.size.space.md,
-  borderRadius: vars.size.space.sm,
-  boxShadow: vars.shadow.xl,
-  backdropFilter: 'blur(10px)',
+  
+  display: 'flex',
+  flexDirection: 'row',
+  justifyContent: 'center',
+  alignItems: 'center',
+  gap: vars.size.space.sm,
+
   transform: 'translateX(-50%)',
 });
 
-export const panelTitle = style({
-  margin: 0,
-  fontWeight: vars.font.title.fontWeight,
-  letterSpacing: vars.font.caption.letterSpacing,
-  lineHeight: vars.font.caption.lineHeight,
-  textTransform: 'uppercase',
-});
-
-export const toolList = style({
-  display: 'grid',
-  gap: vars.size.space.xs,
-});
-
-export const toolButton = style({
+export const groupStyle = style({
   flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  width: '100%',
-  minHeight: vars.size.space.xl,
-  textAlign: 'left',
+  
+  background: `oklch(from ${vars.color.surface.high} l c h / 0.8)`,
+  backdropFilter: 'blur(8px)',
+  borderColor: vars.color.surface.higher,
+  borderStyle: 'solid',
+  borderWidth: vars.size.line.thin,
+  borderRadius: vars.size.space.md,
+  boxShadow: vars.shadow.md,
+
+  padding: vars.size.space.xs,
+  gap: vars.size.space.sm,
 });
 
-export const toolShortcut = style({
-  fontSize: vars.font.caption.fontSize,
-  lineHeight: vars.font.caption.lineHeight,
-});
+// export const alpha = (color: string, alpha: number): string => {
+//   return `oklch(from ${color} l c h / ${alpha})`;
+// };

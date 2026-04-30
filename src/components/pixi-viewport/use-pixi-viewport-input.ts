@@ -284,14 +284,14 @@ export const usePixiViewportInput = ({
       const screenPoint = sceneApi.getHostPoint(event.clientX, event.clientY);
       const worldPoint = {
         x: (screenPoint.x - current.pan.x) / oldScale,
-        y: (screenPoint.y - current.pan.y) / oldScale,
+        y: (current.pan.y - screenPoint.y) / oldScale,
       };
       const zoomStep = event.deltaY > 0 ? -5 : 5;
       const nextZoom = clamp(zoom() + zoomStep, MIN_ZOOM, MAX_ZOOM);
       const nextScale = nextZoom / 100;
 
       current.pan.x = screenPoint.x - worldPoint.x * nextScale;
-      current.pan.y = screenPoint.y - worldPoint.y * nextScale;
+      current.pan.y = screenPoint.y + worldPoint.y * nextScale;
       setZoom(nextZoom);
       sceneApi.redrawScene(current);
       return;

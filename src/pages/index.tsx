@@ -115,14 +115,12 @@ export default function HomePage() {
         <PixiViewport snapshot={level()} onAction={recordHistoryAction} />
       </Box>
 
-      <SidePanel
-        levelName={level().name}
+      <SidePanel levelName={level().name} />
+      <ToolPanel
         canUndo={undoAvailable()}
         canRedo={redoAvailable()}
         onUndo={handleUndo}
         onRedo={handleRedo}
-      />
-      <ToolPanel
         selectedTool={editor().selectedTool}
         onSelectTool={setSelectedTool}
       />

@@ -1,8 +1,12 @@
+import { vars } from '@suis-ui/kit';
 import { style } from '@vanilla-extract/css';
 
 export const viewport = style({
   position: 'absolute',
   inset: 0,
+  background: vars.color.surface.main,
+  color: vars.color.surface.high,
+  borderColor: vars.color.surface.higher,
   overflow: 'hidden',
   cursor: 'crosshair',
   outline: 'none',

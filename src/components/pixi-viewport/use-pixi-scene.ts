@@ -1,3 +1,4 @@
+import Color from 'color';
 import { Application, Container, Graphics } from 'pixi.js';
 import type { Accessor } from 'solid-js';
 import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
@@ -25,6 +26,126 @@ type UsePixiSceneParams = {
   setZoom: (zoom: number) => void;
   snapshot: Accessor<LevelData>;
   zoom: Accessor<number>;
+};
+
+const DEFAULT_VIEWPORT_BACKGROUND_COLOR = 0x101827;
+
+const clampColorChannel = (value: number) =>
+  Math.min(255, Math.max(0, Math.round(value)));
+
+const parseOklchNumber = (value: string) => {
+  if (value === 'none') {
+    return 0;
+  }
+
+  const unitlessValue = value.endsWith('%') ? value.slice(0, -1) : value;
+  const parsedValue = Number(unitlessValue);
+
+  if (!Number.isFinite(parsedValue)) {
+    return null;
+  }
+
+  return value.endsWith('%') ? parsedValue / 100 : parsedValue;
+};
+
+const parseOklchHue = (value: string) => {
+  if (value === 'none') {
+    return 0;
+  }
+
+  const trimmedValue = value.trim();
+
+  if (trimmedValue.endsWith('turn')) {
+    return Number(trimmedValue.slice(0, -4)) * 360;
+  }
+
+  if (trimmedValue.endsWith('rad')) {
+    return (Number(trimmedValue.slice(0, -3)) * 180) / Math.PI;
+  }
+
+  if (trimmedValue.endsWith('grad')) {
+    return Number(trimmedValue.slice(0, -4)) * 0.9;
+  }
+
+  return Number(trimmedValue.replace(/deg$/iu, ''));
+};
+
+const oklchToRgb = (lightness: number, chroma: number, hue: number) => {
+  const hueRadians = (hue * Math.PI) / 180;
+  const okLabA = chroma * Math.cos(hueRadians);
+  const okLabB = chroma * Math.sin(hueRadians);
+
+  const long = lightness + 0.3963377774 * okLabA + 0.2158037573 * okLabB;
+  const medium = lightness - 0.1055613458 * okLabA - 0.0638541728 * okLabB;
+  const short = lightness - 0.0894841775 * okLabA - 1.291485548 * okLabB;
+
+  const longLinear = long ** 3;
+  const mediumLinear = medium ** 3;
+  const shortLinear = short ** 3;
+
+  const redLinear =
+    4.0767416621 * longLinear -
+    3.3077115913 * mediumLinear +
+    0.2309699292 * shortLinear;
+  const greenLinear =
+    -1.2684380046 * longLinear +
+    2.6097574011 * mediumLinear -
+    0.3413193965 * shortLinear;
+  const blueLinear =
+    -0.0041960863 * longLinear -
+    0.7034186147 * mediumLinear +
+    1.707614701 * shortLinear;
+
+  const toSrgbChannel = (value: number) =>
+    value <= 0.0031308 ? 12.92 * value : 1.055 * value ** (1 / 2.4) - 0.055;
+
+  return [
+    clampColorChannel(toSrgbChannel(redLinear) * 255),
+    clampColorChannel(toSrgbChannel(greenLinear) * 255),
+    clampColorChannel(toSrgbChannel(blueLinear) * 255),
+  ] as const;
+};
+
+const parseOklchColor = (color: string) => {
+  const match = /^oklch\(\s*(?<body>.+?)\s*\)$/iu.exec(color);
+  const body = match?.groups?.body;
+
+  if (!body) {
+    return null;
+  }
+
+  const [channels] = body.split('/');
+  const [lightnessValue, chromaValue, hueValue = '0'] =
+    channels?.trim().split(/\s+/u) ?? [];
+
+  if (!lightnessValue || !chromaValue) {
+    return null;
+  }
+
+  const lightness = parseOklchNumber(lightnessValue);
+  const chroma = parseOklchNumber(chromaValue);
+  const hue = parseOklchHue(hueValue);
+
+  if (lightness === null || chroma === null || !Number.isFinite(hue)) {
+    return null;
+  }
+
+  return oklchToRgb(lightness, chroma, hue);
+};
+
+const cssColorToHex = (color: string) => {
+  const trimmedColor = color.trim();
+  const oklchRgb = parseOklchColor(trimmedColor);
+
+  try {
+    if (oklchRgb) {
+      return Color.rgb(...oklchRgb).rgbNumber();
+    }
+
+    return Color(trimmedColor).rgbNumber();
+  } catch {
+    return DEFAULT_VIEWPORT_BACKGROUND_COLOR;
+  }
 };
 
 export const usePixiScene = ({
@@ -57,7 +178,7 @@ export const usePixiScene = ({
 
     return {
       x: (screenPoint.x - current.pan.x) / scale,
-      y: (screenPoint.y - current.pan.y) / scale,
+      y: (current.pan.y - screenPoint.y) / scale,
     };
   };
 
@@ -70,13 +191,16 @@ export const usePixiScene = ({
     };
   };
 
+  const getViewportBackgroundColor = () =>
+    cssColorToHex(getComputedStyle(getHost()).backgroundColor);
+
   const drawBackground = (current: PixiScene) => {
     const host = getHost();
 
     current.background.clear();
     current.background
       .rect(0, 0, host.clientWidth, host.clientHeight)
-      .fill({ color: 0x101827 });
+      .fill({ color: getViewportBackgroundColor() });
   };
 
   const drawGrid = (current: PixiScene) => {
@@ -90,17 +214,21 @@ export const usePixiScene = ({
     });
     const minX = Math.floor(topLeft.x / TILE_SIZE) * TILE_SIZE;
     const maxX = Math.ceil(bottomRight.x / TILE_SIZE) * TILE_SIZE;
-    const minY = Math.floor(topLeft.y / TILE_SIZE) * TILE_SIZE;
-    const maxY = Math.ceil(bottomRight.y / TILE_SIZE) * TILE_SIZE;
+    const minY =
+      Math.floor(Math.min(topLeft.y, bottomRight.y) / TILE_SIZE) * TILE_SIZE;
+    const maxY =
+      Math.ceil(Math.max(topLeft.y, bottomRight.y) / TILE_SIZE) * TILE_SIZE;
 
     current.grid.clear();
 
+    const gridColor = cssColorToHex(getComputedStyle(getHost()).color);
+    const axisColor = cssColorToHex(getComputedStyle(getHost()).borderColor);
     for (let x = minX; x <= maxX; x += TILE_SIZE) {
       current.grid
         .moveTo(x, minY)
         .lineTo(x, maxY)
         .stroke({
-          color: x === 0 ? 0x64748b : 0x263244,
+          color: x === 0 ? axisColor : gridColor,
           width: x === 0 ? lineWidth * 2 : lineWidth,
         });
     }
@@ -110,7 +238,7 @@ export const usePixiScene = ({
         .moveTo(minX, y)
         .lineTo(maxX, y)
         .stroke({
-          color: y === 0 ? 0x64748b : 0x263244,
+          color: y === 0 ? axisColor : gridColor,
           width: y === 0 ? lineWidth * 2 : lineWidth,
         });
     }
@@ -236,7 +364,7 @@ export const usePixiScene = ({
     const scale = zoom() / 100;
 
     current.world.position.set(current.pan.x, current.pan.y);
-    current.world.scale.set(scale);
+    current.world.scale.set(scale, -scale);
 
     drawBackground(current);
     drawGrid(current);
@@ -283,7 +411,7 @@ export const usePixiScene = ({
       .init({
         antialias: true,
         autoDensity: true,
-        background: '#101827',
+        background: getViewportBackgroundColor(),
         height: host.clientHeight,
         resolution: window.devicePixelRatio || 1,
         width: host.clientWidth,
