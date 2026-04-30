@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@solidjs/router':
+        specifier: ^0.16.1
+        version: 0.16.1(solid-js@1.9.12)
       '@suis-ui/kit':
         specifier: latest
         version: 0.1.0(solid-js@1.9.12)
@@ -735,6 +738,11 @@ packages:
     resolution: {integrity: sha512-Nd/SgG27WoA9e+/TdK74KnHz852TLa94ovOYySo/yMPuTmpckK/jIF2jSwS3g7ELSKXK13/cVdmg1Z/DaCWKxA==}
     cpu: [x64]
     os: [win32]
+
+  '@solidjs/router@0.16.1':
+    resolution: {integrity: sha512-IhyjedgC6LRpw/8CPGGI89FrV+r0xTHzOl2c4CRyzYQ1bLepJxbVI1LLKvsavMWY5TRBRacV7hAeOhuTXkjiqg==}
+    peerDependencies:
+      solid-js: ^1.8.6
 
   '@suis-ui/kit@0.1.0':
     resolution: {integrity: sha512-wznO0G164eW1MdxN9AKa9g7N3DC25wIlSCkVviSqm9Aq6OUnQd/5a/ZVEDjQ+l92UocrBeiX11dk0qVCg6fF4w==}
@@ -1779,6 +1787,10 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.60.2':
     optional: true
+
+  '@solidjs/router@0.16.1(solid-js@1.9.12)':
+    dependencies:
+      solid-js: 1.9.12
 
   '@suis-ui/kit@0.1.0(solid-js@1.9.12)':
     dependencies:

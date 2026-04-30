@@ -24,8 +24,14 @@ Use `pnpm` as the package manager because this repository has a `pnpm-lock.yaml`
 - Follow SolidJS signal access rules. Read signals by calling them, such as `editor()`, and update state through setter functions.
 - Prefer extending the existing `nanostores` pattern in `src/stores/editor.ts` for shared editor state.
 - Keep UI components small and explicit, matching the current SolidJS component structure.
-- Follow the existing `src/styles/*.css.ts` styling pattern. Prefer vanilla-extract styles and recipes over ad hoc global CSS.
+- Prefer vanilla-extract styles and recipes over ad hoc global CSS.
 - Avoid unrelated refactors, formatting-only churn, and file moves.
+- Component implementation folders and files must use kebab-case names, such as `tool-panel/tool-panel.tsx`.
+- Component folders must contain `component-name.tsx`, `component-name.css.ts`, and `index.ts`.
+- Exported TypeScript component identifiers must stay PascalCase, such as `ToolPanel`.
+- Keep component-only helper files, constants, and subcomponents inside that component folder.
+- Export the component from the folder `index.ts`, and import components from that folder export instead of directly importing implementation files.
+- The app shell under `src/App` and route files under `src/pages` are entrypoint exceptions to this component folder rule.
 
 ## UI Guidelines
 

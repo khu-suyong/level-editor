@@ -1,8 +1,8 @@
 import { Application, Container, Graphics } from "pixi.js";
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 
-import { setCanvasReady } from "../stores/editor";
-import * as styles from "../styles/app.css";
+import { setCanvasReady } from "../../stores/editor";
+import * as styles from "./pixi-viewport.css";
 
 type PixiViewportProps = {
   zoom: number;

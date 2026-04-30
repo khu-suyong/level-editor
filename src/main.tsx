@@ -1,9 +1,9 @@
 import { ThemeProvider } from "@suis-ui/kit";
 import { render } from "solid-js/web";
 
-import { App } from "./App";
-import "./styles/global.css";
-import "./styles/global.css.ts";
+import { App } from "./app";
+
+import '@suis-ui/kit/style.css';
 
 const root = document.getElementById("root");
 
