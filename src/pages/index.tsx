@@ -15,7 +15,6 @@ import {
   canUndo,
   currentSnapshot,
   initializeHistory,
-  recordHistoryAction,
   redoHistory,
   undoHistory,
 } from '../stores/history';
@@ -112,7 +111,7 @@ export default function HomePage() {
         bg={'gray.950'}
         aria-label={'Level canvas'}
       >
-        <PixiViewport snapshot={level()} onAction={recordHistoryAction} />
+        <PixiViewport snapshot={level()} />
       </Box>
 
       <SidePanel levelName={level().name} />

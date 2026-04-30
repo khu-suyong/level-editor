@@ -44,11 +44,4 @@ export type DragState =
       baseSelection: TilePlacement[];
       additive: boolean;
       moved: boolean;
-    }
-  | {
-      mode: 'move-selection';
-      pointerId: number;
-      startCell: Cell;
-      baseSelection: TilePlacement[];
-      moved: boolean;
     };

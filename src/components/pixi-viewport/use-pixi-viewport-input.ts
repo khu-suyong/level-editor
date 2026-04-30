@@ -19,12 +19,12 @@ import {
   coordinateKey,
   isEditableTarget,
   normalizeTiles,
+  uniqueCells,
 } from './util';
 
 type UsePixiViewportInputParams = {
   actions: PixiEditorActions;
   contextMenu: Accessor<ContextMenuState>;
-  dragDelta: Accessor<Cell | null>;
   getHost: () => HTMLDivElement;
   hoverCell: Accessor<Cell | null>;
   scene: Accessor<PixiScene | null>;
@@ -38,15 +38,23 @@ type UsePixiViewportInputParams = {
   setDragDelta: Setter<Cell | null>;
   setHoverCell: Setter<Cell | null>;
   setIsPanning: Setter<boolean>;
+  setPaintPreviewCells: Setter<Cell[]>;
   setSelectionRect: Setter<SelectionRect | null>;
   setZoom: (zoom: number) => void;
   zoom: Accessor<number>;
 };
 
+type PointerCell = {
+  cell: Cell;
+  current: PixiScene;
+  screenPoint: Cell;
+};
+
+type SelectRectDragState = Extract<DragState, { mode: 'select-rect' }>;
+
 export const usePixiViewportInput = ({
   actions,
   contextMenu,
-  dragDelta,
   getHost,
   hoverCell,
   scene,
@@ -57,6 +65,7 @@ export const usePixiViewportInput = ({
   setDragDelta,
   setHoverCell,
   setIsPanning,
+  setPaintPreviewCells,
   setSelectionRect,
   setZoom,
   zoom,
@@ -64,7 +73,63 @@ export const usePixiViewportInput = ({
   let dragState: DragState | null = null;
   let isSpaceDown = false;
 
-  const startPan = (pointerId: number, screenPoint: Cell) => {
+  const closeContextMenu = () => {
+    setContextMenu((prev) => ({ ...prev, open: false }));
+  };
+
+  const safeReleasePointerCapture = (pointerId: number) => {
+    const host = getHost();
+
+    if (!host.hasPointerCapture(pointerId)) {
+      return;
+    }
+
+    try {
+      host.releasePointerCapture(pointerId);
+    } catch {
+      // Pointer capture can already be gone after browser-level cancellation.
+    }
+  };
+
+  const resetTransientInputState = () => {
+    dragState = null;
+    isSpaceDown = false;
+    setDragDelta(null);
+    setIsPanning(false);
+    setPaintPreviewCells([]);
+    setSelectionRect(null);
+  };
+
+  const cancelDrag = () => {
+    if (dragState) {
+      safeReleasePointerCapture(dragState.pointerId);
+    }
+
+    resetTransientInputState();
+  };
+
+  const getPointerCell = (
+    event: PointerEvent | MouseEvent,
+  ): PointerCell | null => {
+    const current = scene();
+
+    if (!current) {
+      return null;
+    }
+
+    const screenPoint = sceneApi.getHostPoint(event.clientX, event.clientY);
+
+    return {
+      cell: sceneApi.screenToCell(current, screenPoint),
+      current,
+      screenPoint,
+    };
+  };
+
+  const getPasteTarget = () =>
+    contextMenu().open ? contextMenu().cell : (hoverCell() ?? { x: 0, y: 0 });
+
+  const beginPan = (pointerId: number, screenPoint: Cell) => {
     dragState = {
       mode: 'pan',
       pointerId,
@@ -73,87 +138,42 @@ export const usePixiViewportInput = ({
     setIsPanning(true);
   };
 
-  const handlePointerDown = (event: PointerEvent) => {
-    const current = scene();
+  const beginPaint = (pointerId: number, cell: Cell) => {
+    dragState = {
+      mode: 'paint',
+      pointerId,
+      lastCell: cell,
+      cells: [cell],
+    };
+    setPaintPreviewCells([cell]);
+  };
 
-    if (!current || event.button === 2) {
-      return;
-    }
+  const beginErase = (pointerId: number, cell: Cell) => {
+    dragState = {
+      mode: 'erase',
+      pointerId,
+      lastCell: cell,
+      cells: [cell],
+    };
+  };
 
-    const host = getHost();
-
-    setContextMenu((prev) => ({ ...prev, open: false }));
-    host.setPointerCapture(event.pointerId);
-
-    const screenPoint = sceneApi.getHostPoint(event.clientX, event.clientY);
-    const cell = sceneApi.screenToCell(current, screenPoint);
-
-    if (event.button === 1 || isSpaceDown || selectedTool() === 'pan') {
-      event.preventDefault();
-      startPan(event.pointerId, screenPoint);
-      return;
-    }
-
-    if (selectedTool() === 'brush') {
-      event.preventDefault();
-      dragState = {
-        mode: 'paint',
-        pointerId: event.pointerId,
-        lastCell: cell,
-        cells: [cell],
-      };
-      return;
-    }
-
-    if (selectedTool() === 'erase') {
-      event.preventDefault();
-      dragState = {
-        mode: 'erase',
-        pointerId: event.pointerId,
-        lastCell: cell,
-        cells: [cell],
-      };
-      return;
-    }
-
-    const selectedKeys = new Set(selection().map(coordinateKey));
-
-    if (selectedKeys.has(coordinateKey(cell)) && !event.shiftKey) {
-      event.preventDefault();
-      dragState = {
-        mode: 'move-selection',
-        pointerId: event.pointerId,
-        startCell: cell,
-        baseSelection: selection(),
-        moved: false,
-      };
-      return;
-    }
-
-    event.preventDefault();
+  const beginSelectionRect = (
+    pointerId: number,
+    cell: Cell,
+    additive: boolean,
+  ) => {
     dragState = {
       mode: 'select-rect',
-      pointerId: event.pointerId,
+      pointerId,
       startCell: cell,
       baseSelection: selection(),
-      additive: event.shiftKey,
+      additive,
       moved: false,
     };
     setSelectionRect({ start: cell, end: cell });
   };
 
-  const handlePointerMove = (event: PointerEvent) => {
-    const current = scene();
-
-    if (!current) {
-      return;
-    }
-
-    const screenPoint = sceneApi.getHostPoint(event.clientX, event.clientY);
-    const cell = sceneApi.screenToCell(current, screenPoint);
-
-    setHoverCell(cell);
-
+  const updateDrag = (event: PointerEvent, cell: Cell, screenPoint: Cell) => {
     if (!dragState || dragState.pointerId !== event.pointerId) {
       return;
     }
@@ -161,6 +181,12 @@ export const usePixiViewportInput = ({
     event.preventDefault();
 
     if (dragState.mode === 'pan') {
+      const current = scene();
+
+      if (!current) {
+        return;
+      }
+
       current.pan.x += screenPoint.x - dragState.lastScreen.x;
       current.pan.y += screenPoint.y - dragState.lastScreen.y;
       dragState.lastScreen = screenPoint;
@@ -174,100 +200,148 @@ export const usePixiViewportInput = ({
     ) {
       dragState.lastCell = cell;
       dragState.cells = [...dragState.cells, cell];
-      return;
-    }
 
-    if (dragState.mode === 'select-rect') {
-      if (!cellsEqual(dragState.startCell, cell)) {
-        dragState.moved = true;
-        setSelectionRect({ start: dragState.startCell, end: cell });
-        actions.selectTilesInRect(
-          dragState.startCell,
-          cell,
-          dragState.baseSelection,
-          dragState.additive,
-        );
+      if (dragState.mode === 'paint') {
+        setPaintPreviewCells(uniqueCells(dragState.cells));
       }
       return;
     }
 
-    if (dragState.mode === 'move-selection') {
-      const delta = {
-        x: cell.x - dragState.startCell.x,
-        y: cell.y - dragState.startCell.y,
-      };
-
-      dragState.moved = delta.x !== 0 || delta.y !== 0;
-      setDragDelta(delta);
+    if (
+      dragState.mode === 'select-rect' &&
+      !cellsEqual(dragState.startCell, cell)
+    ) {
+      dragState.moved = true;
+      setSelectionRect({ start: dragState.startCell, end: cell });
+      return;
     }
   };
 
-  const handlePointerUp = (event: PointerEvent) => {
-    if (!dragState || dragState.pointerId !== event.pointerId) {
+  const commitClickSelection = (cell: Cell, state: SelectRectDragState) => {
+    const clickedTile = actions.findTileAt(cell);
+
+    if (!clickedTile) {
+      setSelection(state.additive ? state.baseSelection : []);
       return;
     }
 
-    const host = getHost();
-    const current = scene();
-    const screenPoint = current
-      ? sceneApi.getHostPoint(event.clientX, event.clientY)
-      : { x: 0, y: 0 };
-    const cell = current ? sceneApi.screenToCell(current, screenPoint) : null;
+    if (!state.additive) {
+      setSelection([clickedTile]);
+      return;
+    }
 
-    host.releasePointerCapture(event.pointerId);
+    const selectedKeys = new Set(state.baseSelection.map(coordinateKey));
+    setSelection(
+      selectedKeys.has(coordinateKey(clickedTile))
+        ? state.baseSelection.filter((tile) => !cellsEqual(tile, clickedTile))
+        : normalizeTiles([...state.baseSelection, clickedTile]),
+    );
+  };
+
+  const commitDrag = (cell: Cell | null) => {
+    if (!dragState) {
+      return;
+    }
 
     if (dragState.mode === 'paint') {
       actions.paintCells(dragState.cells);
+      return;
     }
 
     if (dragState.mode === 'erase') {
       actions.eraseCells(dragState.cells);
+      return;
     }
 
-    if (dragState.mode === 'select-rect' && cell) {
-      if (!dragState.moved) {
-        const clickedTile = actions.findTileAt(cell);
-
-        if (!clickedTile) {
-          setSelection(dragState.additive ? dragState.baseSelection : []);
-        } else if (dragState.additive) {
-          const selectedKeys = new Set(
-            dragState.baseSelection.map(coordinateKey),
-          );
-
-          setSelection(
-            selectedKeys.has(coordinateKey(clickedTile))
-              ? dragState.baseSelection.filter(
-                  (tile) => !cellsEqual(tile, clickedTile),
-                )
-              : normalizeTiles([...dragState.baseSelection, clickedTile]),
+    if (dragState.mode === 'select-rect') {
+      if (cell) {
+        if (dragState.moved) {
+          actions.selectTilesInRect(
+            dragState.startCell,
+            cell,
+            dragState.baseSelection,
+            dragState.additive,
           );
         } else {
-          setSelection([clickedTile]);
+          commitClickSelection(cell, dragState);
         }
       }
+      return;
+    }
+  };
 
-      setSelectionRect(null);
+  const finishDrag = (event: PointerEvent) => {
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
     }
 
-    if (dragState.mode === 'move-selection') {
-      const delta = dragDelta();
+    const pointerCell = getPointerCell(event);
 
-      if (delta && dragState.moved) {
-        actions.moveSelection(delta);
-      }
-      setDragDelta(null);
+    safeReleasePointerCapture(event.pointerId);
+    commitDrag(pointerCell?.cell ?? null);
+    resetTransientInputState();
+  };
+
+  const handlePointerDown = (event: PointerEvent) => {
+    if (event.button === 2) {
+      return;
     }
 
-    if (dragState.mode === 'pan') {
-      setIsPanning(false);
+    const pointerCell = getPointerCell(event);
+
+    if (!pointerCell) {
+      return;
     }
 
-    dragState = null;
+    event.preventDefault();
+    closeContextMenu();
+    getHost().setPointerCapture(event.pointerId);
+
+    if (event.button === 1 || isSpaceDown || selectedTool() === 'pan') {
+      beginPan(event.pointerId, pointerCell.screenPoint);
+      return;
+    }
+
+    if (selectedTool() === 'brush') {
+      beginPaint(event.pointerId, pointerCell.cell);
+      return;
+    }
+
+    if (selectedTool() === 'erase') {
+      beginErase(event.pointerId, pointerCell.cell);
+      return;
+    }
+
+    beginSelectionRect(event.pointerId, pointerCell.cell, event.shiftKey);
+  };
+
+  const handlePointerMove = (event: PointerEvent) => {
+    const pointerCell = getPointerCell(event);
+
+    if (!pointerCell) {
+      return;
+    }
+
+    setHoverCell(pointerCell.cell);
+    updateDrag(event, pointerCell.cell, pointerCell.screenPoint);
+  };
+
+  const handlePointerUp = (event: PointerEvent) => {
+    finishDrag(event);
+  };
+
+  const handlePointerCancel = (event: PointerEvent) => {
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    cancelDrag();
   };
 
   const handlePointerLeave = () => {
-    setHoverCell(null);
+    if (!dragState) {
+      setHoverCell(null);
+    }
   };
 
   const handleWheel = (event: WheelEvent) => {
@@ -303,34 +377,100 @@ export const usePixiViewportInput = ({
   };
 
   const handleContextMenu = (event: MouseEvent) => {
-    const current = scene();
+    const pointerCell = getPointerCell(event);
 
-    if (!current) {
+    if (!pointerCell) {
       return;
     }
 
     event.preventDefault();
 
     const host = getHost();
-    const screenPoint = sceneApi.getHostPoint(event.clientX, event.clientY);
-    const cell = sceneApi.screenToCell(current, screenPoint);
 
     setContextMenu({
       open: true,
-      pointerX: clamp(screenPoint.x, 8, Math.max(8, host.clientWidth - 168)),
-      pointerY: clamp(screenPoint.y, 8, Math.max(8, host.clientHeight - 188)),
-      cell,
+      pointerX: clamp(
+        pointerCell.screenPoint.x,
+        8,
+        Math.max(8, host.clientWidth - 168),
+      ),
+      pointerY: clamp(
+        pointerCell.screenPoint.y,
+        8,
+        Math.max(8, host.clientHeight - 188),
+      ),
+      cell: pointerCell.cell,
     });
+  };
+
+  const handleCommandShortcut = (event: KeyboardEvent) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'c') {
+      event.preventDefault();
+      actions.copySelection();
+      return true;
+    }
+
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'v') {
+      event.preventDefault();
+      actions.pasteClipboard(getPasteTarget());
+      closeContextMenu();
+      return true;
+    }
+
+    return false;
+  };
+
+  const handleCanvasCommand = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelDrag();
+      closeContextMenu();
+      setSelection([]);
+      return true;
+    }
+
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      event.preventDefault();
+      actions.deleteSelection();
+      return true;
+    }
+
+    if (event.key === '0') {
+      event.preventDefault();
+      sceneApi.resetView();
+      return true;
+    }
+
+    return false;
+  };
+
+  const handleKeyboardPan = (event: KeyboardEvent, current: PixiScene) => {
+    const panStep = event.shiftKey ? TILE_SIZE * 4 : TILE_SIZE;
+
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      current.pan.x += panStep;
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      current.pan.x -= panStep;
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      current.pan.y += panStep;
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      current.pan.y -= panStep;
+    } else {
+      return false;
+    }
+
+    sceneApi.redrawScene(current);
+    return true;
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
     const current = scene();
 
-    if (isEditableTarget(event.target)) {
-      return;
-    }
-
-    if (!current) {
+    if (isEditableTarget(event.target) || !current) {
       return;
     }
 
@@ -340,61 +480,15 @@ export const usePixiViewportInput = ({
       return;
     }
 
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'c') {
-      event.preventDefault();
-      actions.copySelection();
+    if (handleCommandShortcut(event)) {
       return;
     }
 
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'v') {
-      event.preventDefault();
-      actions.pasteClipboard(
-        contextMenu()?.cell ?? hoverCell() ?? { x: 0, y: 0 },
-      );
-      setContextMenu((prev) => ({ ...prev, open: false }));
+    if (handleCanvasCommand(event)) {
       return;
     }
 
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      setContextMenu((prev) => ({ ...prev, open: false }));
-      setSelectionRect(null);
-      setDragDelta(null);
-      setSelection([]);
-      return;
-    }
-
-    if (event.key === 'Delete' || event.key === 'Backspace') {
-      event.preventDefault();
-      actions.deleteSelection();
-      return;
-    }
-
-    if (event.key === '0') {
-      event.preventDefault();
-      sceneApi.resetView();
-      return;
-    }
-
-    const panStep = event.shiftKey ? TILE_SIZE * 4 : TILE_SIZE;
-
-    if (event.key === 'ArrowLeft') {
-      event.preventDefault();
-      current.pan.x += panStep;
-      sceneApi.redrawScene(current);
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault();
-      current.pan.x -= panStep;
-      sceneApi.redrawScene(current);
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      current.pan.y += panStep;
-      sceneApi.redrawScene(current);
-    } else if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      current.pan.y -= panStep;
-      sceneApi.redrawScene(current);
-    }
+    handleKeyboardPan(event, current);
   };
 
   const handleKeyUp = (event: KeyboardEvent) => {
@@ -405,17 +499,12 @@ export const usePixiViewportInput = ({
 
   const handleMenuCopy = () => {
     actions.copySelection();
-    setContextMenu((prev) => ({ ...prev, open: false }));
+    closeContextMenu();
   };
 
   const handleMenuPaste = () => {
-    const menuState = contextMenu();
-
-    if (menuState) {
-      actions.pasteClipboard(menuState.cell);
-    }
-
-    setContextMenu((prev) => ({ ...prev, open: false }));
+    actions.pasteClipboard(contextMenu().cell);
+    closeContextMenu();
   };
 
   const handleMenuDelete = () => {
@@ -423,21 +512,25 @@ export const usePixiViewportInput = ({
 
     if (selection().length > 0) {
       actions.deleteSelection();
-    } else if (menuState) {
+    } else {
       actions.eraseCells([menuState.cell]);
     }
 
-    setContextMenu((prev) => ({ ...prev, open: false }));
+    closeContextMenu();
   };
 
   const handleClearSelection = () => {
     setSelection([]);
-    setContextMenu((prev) => ({ ...prev, open: false }));
+    closeContextMenu();
   };
 
   const handleResetView = () => {
     sceneApi.resetView();
-    setContextMenu((prev) => ({ ...prev, open: false }));
+    closeContextMenu();
+  };
+
+  const handleWindowBlur = () => {
+    cancelDrag();
   };
 
   onMount(() => {
@@ -446,23 +539,26 @@ export const usePixiViewportInput = ({
     host.addEventListener('pointerdown', handlePointerDown);
     host.addEventListener('pointermove', handlePointerMove);
     host.addEventListener('pointerup', handlePointerUp);
-    host.addEventListener('pointercancel', handlePointerUp);
+    host.addEventListener('pointercancel', handlePointerCancel);
     host.addEventListener('pointerleave', handlePointerLeave);
     host.addEventListener('wheel', handleWheel, { passive: false });
     host.addEventListener('contextmenu', handleContextMenu);
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
 
     onCleanup(() => {
+      cancelDrag();
       host.removeEventListener('pointerdown', handlePointerDown);
       host.removeEventListener('pointermove', handlePointerMove);
       host.removeEventListener('pointerup', handlePointerUp);
-      host.removeEventListener('pointercancel', handlePointerUp);
+      host.removeEventListener('pointercancel', handlePointerCancel);
       host.removeEventListener('pointerleave', handlePointerLeave);
       host.removeEventListener('wheel', handleWheel);
       host.removeEventListener('contextmenu', handleContextMenu);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleWindowBlur);
     });
   });
 

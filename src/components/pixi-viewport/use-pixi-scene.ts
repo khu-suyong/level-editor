@@ -4,7 +4,7 @@ import type { Accessor } from 'solid-js';
 import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 
 import type { Cell, LevelData, TilePlacement } from '@/models/level';
-import { setCanvasReady } from '@/stores/editor';
+import { type EditorTool, setCanvasReady } from '@/stores/editor';
 
 import { TILE_SIZE } from './constants';
 import * as styles from './pixi-viewport.css';
@@ -13,14 +13,16 @@ import { coordinateKey, getCellRect, tileColor } from './util';
 
 type UsePixiSceneParams = {
   activeLayerId: Accessor<string>;
+  brushTileId: Accessor<number>;
   clipboard: Accessor<{
     tiles: TilePlacement[];
   } | null>;
-  contextMenu: Accessor<ContextMenuState | null>;
+  contextMenu: Accessor<ContextMenuState>;
   dragDelta: Accessor<Cell | null>;
-  getActiveTiles: Accessor<TilePlacement[]>;
   getHost: () => HTMLDivElement;
   hoverCell: Accessor<Cell | null>;
+  paintPreviewCells: Accessor<Cell[]>;
+  selectedTool: Accessor<EditorTool>;
   selection: Accessor<TilePlacement[]>;
   selectionRect: Accessor<SelectionRect | null>;
   setZoom: (zoom: number) => void;
@@ -150,12 +152,14 @@ const cssColorToHex = (color: string) => {
 
 export const usePixiScene = ({
   activeLayerId,
+  brushTileId,
   clipboard,
   contextMenu,
   dragDelta,
-  getActiveTiles,
   getHost,
   hoverCell,
+  paintPreviewCells,
+  selectedTool,
   selection,
   selectionRect,
   setZoom,
@@ -247,6 +251,9 @@ export const usePixiScene = ({
   const drawTiles = (current: PixiScene) => {
     const scale = zoom() / 100;
     const lineWidth = 1 / scale;
+    const movingSelectedKeys = dragDelta()
+      ? new Set(selection().map(coordinateKey))
+      : null;
 
     current.tileLayer.clear();
 
@@ -256,6 +263,10 @@ export const usePixiScene = ({
       const isActiveLayer = layer.id === activeLayerId();
 
       for (const tile of layer.tiles) {
+        if (isActiveLayer && movingSelectedKeys?.has(coordinateKey(tile))) {
+          continue;
+        }
+
         const rect = getCellRect(tile);
 
         current.tileLayer
@@ -276,11 +287,41 @@ export const usePixiScene = ({
   const drawPreview = (current: PixiScene) => {
     current.preview.clear();
 
-    const currentClipboard = clipboard();
     const menuState = contextMenu();
-    const targetCell = menuState?.cell ?? hoverCell();
 
-    if (!currentClipboard || !targetCell || menuState) {
+    if (menuState.open) {
+      return;
+    }
+
+    const lineWidth = 1 / (zoom() / 100);
+
+    if (selectedTool() === 'brush') {
+      const previewCells = paintPreviewCells();
+      const cells = previewCells.length > 0 ? previewCells : hoverCell();
+
+      for (const cell of Array.isArray(cells) ? cells : cells ? [cells] : []) {
+        const rect = getCellRect(cell);
+
+        current.preview
+          .rect(rect.x + 1, rect.y + 1, TILE_SIZE - 2, TILE_SIZE - 2)
+          .fill({ color: tileColor(brushTileId()), alpha: 0.24 })
+          .stroke({
+            color: 0x38bdf8,
+            alpha: 0.56,
+            width: lineWidth,
+          });
+      }
+      return;
+    }
+
+    if (selectedTool() === 'select') {
+      return;
+    }
+
+    const currentClipboard = clipboard();
+    const targetCell = hoverCell();
+
+    if (!currentClipboard || !targetCell) {
       return;
     }
 
@@ -296,7 +337,7 @@ export const usePixiScene = ({
         .stroke({
           color: 0x38bdf8,
           alpha: 0.56,
-          width: 1 / (zoom() / 100),
+          width: lineWidth,
         });
     }
   };
@@ -304,7 +345,6 @@ export const usePixiScene = ({
   const drawOverlay = (current: PixiScene) => {
     const scale = zoom() / 100;
     const lineWidth = 2 / scale;
-    const selectedKeys = new Set(selection().map(coordinateKey));
     const delta = dragDelta();
     const hover = hoverCell();
     const rectSelection = selectionRect();
@@ -324,11 +364,18 @@ export const usePixiScene = ({
         x: tile.x + (delta?.x ?? 0),
         y: tile.y + (delta?.y ?? 0),
       });
+      const selectedTile = current.overlay.rect(
+        rect.x + 1,
+        rect.y + 1,
+        TILE_SIZE - 2,
+        TILE_SIZE - 2,
+      );
 
-      current.overlay
-        .rect(rect.x + 1, rect.y + 1, TILE_SIZE - 2, TILE_SIZE - 2)
-        .fill({ color: 0xfacc15, alpha: delta ? 0.18 : 0.08 })
-        .stroke({ color: 0xfacc15, alpha: 0.9, width: lineWidth });
+      if (delta) {
+        selectedTile.fill({ color: tileColor(tile.tileId), alpha: 0.28 });
+      }
+
+      selectedTile.stroke({ color: 0xfacc15, alpha: 0.9, width: lineWidth });
     }
 
     if (rectSelection) {
@@ -346,17 +393,6 @@ export const usePixiScene = ({
         )
         .fill({ color: 0x38bdf8, alpha: 0.08 })
         .stroke({ color: 0x38bdf8, alpha: 0.78, width: lineWidth });
-    }
-
-    for (const tile of getActiveTiles()) {
-      if (!selectedKeys.has(coordinateKey(tile))) {
-        continue;
-      }
-
-      const rect = getCellRect(tile);
-      current.overlay
-        .rect(rect.x + 5, rect.y + 5, TILE_SIZE - 10, TILE_SIZE - 10)
-        .stroke({ color: 0xfef08a, alpha: 0.72, width: 1 / scale });
     }
   };
 

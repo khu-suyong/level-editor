@@ -160,21 +160,17 @@ export const historyStore = map<EditorHistoryState>({
   latestSnapshot: null,
 });
 
-export const getCurrentSnapshot = ({
-  actions,
-  deltaIndex,
-  latestSnapshot,
-}: EditorHistoryState) => {
-  if (!latestSnapshot) {
+// computed
+
+export const currentSnapshot = computed(historyStore, (history) => {
+  if (!history.latestSnapshot) {
     return null;
   }
 
-  return actions
-    .slice(actions.length - deltaIndex)
-    .reduceRight(revertHistoryAction, latestSnapshot);
-};
-
-export const currentSnapshot = computed(historyStore, getCurrentSnapshot);
+  return history.actions
+    .slice(history.actions.length - history.deltaIndex)
+    .reduceRight(revertHistoryAction, history.latestSnapshot);
+});
 
 export const canUndo = computed(
   historyStore,
@@ -186,6 +182,8 @@ export const canRedo = computed(
   ({ deltaIndex }) => deltaIndex > 0,
 );
 
+// actions
+
 export const initializeHistory = (snapshot: LevelData) => {
   historyStore.set({
     actions: [],
@@ -196,7 +194,7 @@ export const initializeHistory = (snapshot: LevelData) => {
 
 export const recordHistoryAction = (action: EditorHistoryAction) => {
   const history = historyStore.get();
-  const snapshot = getCurrentSnapshot(history);
+  const snapshot = currentSnapshot.get();
 
   if (!snapshot) {
     return;
@@ -234,38 +232,43 @@ export const redoHistory = () => {
   historyStore.setKey('deltaIndex', history.deltaIndex - 1);
 };
 
-export const createPasteAction = (
-  snapshot: LevelData,
-  layerId: string,
-  tiles: TilePlacement[],
-): AddHistoryAction | ReplaceHistoryAction | null => {
+export const addTiles = (layerId: string, tiles: TilePlacement[]) => {
   if (tiles.length === 0) {
-    return null;
+    return;
   }
 
-  const layer = snapshot.layers.find((item) => item.id === layerId);
+  recordHistoryAction({ type: 'add', layerId, tiles });
+};
 
-  if (!layer) {
-    return null;
+export const deleteTiles = (layerId: string, tiles: TilePlacement[]) => {
+  if (tiles.length === 0) {
+    return;
   }
 
-  const pastedKeys = new Set(tiles.map(coordinateKey));
-  const deletedTiles = layer.tiles.filter((tile) =>
-    pastedKeys.has(coordinateKey(tile)),
-  );
+  recordHistoryAction({ type: 'delete', layerId, tiles });
+};
 
-  if (deletedTiles.length === 0) {
-    return {
-      type: 'add',
-      layerId,
-      tiles,
-    };
+export const moveTiles = (layerId: string, moves: TileMove[]) => {
+  if (moves.length === 0) {
+    return;
   }
 
-  return {
+  recordHistoryAction({ type: 'move', layerId, moves });
+};
+
+export const replaceTiles = (
+  layerId: string,
+  add: TilePlacement[],
+  deletedTiles: TilePlacement[],
+) => {
+  if (add.length === 0 && deletedTiles.length === 0) {
+    return;
+  }
+
+  recordHistoryAction({
     type: 'replace',
     layerId,
-    add: tiles,
+    add,
     delete: deletedTiles,
-  };
+  });
 };

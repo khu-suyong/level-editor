@@ -10,7 +10,6 @@ import {
 import { createSignal } from 'solid-js';
 import type { Cell, LevelData } from '@/models/level';
 import { editorStore, setZoom } from '@/stores/editor';
-import type { EditorHistoryAction } from '@/stores/history';
 import { Item } from '../ui/item';
 import { ItemGroup } from '../ui/item/item-group';
 import * as styles from './pixi-viewport.css';
@@ -21,7 +20,6 @@ import { usePixiViewportInput } from './use-pixi-viewport-input';
 
 export type PixiViewportProps = {
   snapshot: LevelData;
-  onAction: (action: EditorHistoryAction) => void;
 };
 
 export const PixiViewport = (props: PixiViewportProps) => {
@@ -36,6 +34,7 @@ export const PixiViewport = (props: PixiViewportProps) => {
     cell: { x: 0, y: 0 },
   });
   const [dragDelta, setDragDelta] = createSignal<Cell | null>(null);
+  const [paintPreviewCells, setPaintPreviewCells] = createSignal<Cell[]>([]);
   const [selectionRect, setSelectionRect] = createSignal<SelectionRect | null>(
     null,
   );
@@ -61,18 +60,19 @@ export const PixiViewport = (props: PixiViewportProps) => {
   const actions = usePixiEditorActions({
     activeLayerId,
     clipboard,
-    onAction: props.onAction,
     selection,
     snapshot,
   });
   const sceneApi = usePixiScene({
     activeLayerId,
+    brushTileId: actions.getDefaultTileId,
     clipboard,
     contextMenu,
     dragDelta,
-    getActiveTiles: actions.getActiveTiles,
     getHost,
     hoverCell,
+    paintPreviewCells,
+    selectedTool,
     selection,
     selectionRect,
     setZoom,
@@ -82,7 +82,6 @@ export const PixiViewport = (props: PixiViewportProps) => {
   const input = usePixiViewportInput({
     actions,
     contextMenu,
-    dragDelta,
     getHost,
     hoverCell,
     scene: sceneApi.scene,
@@ -93,6 +92,7 @@ export const PixiViewport = (props: PixiViewportProps) => {
     setDragDelta,
     setHoverCell,
     setIsPanning,
+    setPaintPreviewCells,
     setSelectionRect,
     setZoom,
     zoom,

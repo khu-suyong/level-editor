@@ -35,7 +35,7 @@ Use `pnpm` as the package manager because this repository has a `pnpm-lock.yaml`
 - Exported TypeScript component identifiers must stay PascalCase, such as `ToolPanel`.
 - Keep component-only helper files, constants, and subcomponents inside that component folder.
 - Export the component from the folder `index.ts`, and import components from that folder export instead of directly importing implementation files.
-- The app shell under `src/App` and route files under `src/pages` are entrypoint exceptions to this component folder rule.
+- The app shell under `src/app` and route files under `src/pages` are entrypoint exceptions to this component folder rule.
 
 ## UI Guidelines
 

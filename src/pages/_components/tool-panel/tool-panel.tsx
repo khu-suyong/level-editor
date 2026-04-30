@@ -37,10 +37,7 @@ export function ToolPanel(props: ToolPanelProps) {
   return (
     <Box as={'aside'} class={styles.containerStyle}>
       <Box class={styles.groupStyle} aria-label={'Editor toolbar'}>
-        <Box
-          direction={'row'}
-          aria-label={'History actions'}
-        >
+        <Box direction={'row'} aria-label={'History actions'}>
           <Button
             variant={'ghost'}
             size={'md'}
@@ -69,10 +66,7 @@ export function ToolPanel(props: ToolPanelProps) {
       </Box>
 
       <Box class={styles.groupStyle} aria-label={'Editor toolbar'}>
-        <Box
-          direction={'row'}
-          aria-label={'Editor modes'}
-        >
+        <Box direction={'row'} aria-label={'Editor modes'}>
           <For each={tools}>
             {(tool) => (
               <Button

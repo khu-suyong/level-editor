@@ -6,7 +6,7 @@ export const containerStyle = style({
   zIndex: 10,
   left: '50%',
   bottom: vars.size.space.lg,
-  
+
   display: 'flex',
   flexDirection: 'row',
   justifyContent: 'center',
@@ -18,7 +18,7 @@ export const containerStyle = style({
 
 export const groupStyle = style({
   flexDirection: 'row',
-  
+
   background: `oklch(from ${vars.color.surface.high} l c h / 0.8)`,
   backdropFilter: 'blur(8px)',
   borderColor: vars.color.surface.higher,
@@ -30,7 +30,3 @@ export const groupStyle = style({
   padding: vars.size.space.xs,
   gap: vars.size.space.sm,
 });
-
-// export const alpha = (color: string, alpha: number): string => {
-//   return `oklch(from ${color} l c h / ${alpha})`;
-// };
