@@ -27,6 +27,14 @@ export const isPanning = style({
   cursor: 'grabbing',
 });
 
+export const isSelectionDraggable = style({
+  cursor: 'grab',
+});
+
+export const isSelectionDragging = style({
+  cursor: 'grabbing',
+});
+
 export const contextMenu = style({
   position: 'absolute',
   pointerEvents: 'none',

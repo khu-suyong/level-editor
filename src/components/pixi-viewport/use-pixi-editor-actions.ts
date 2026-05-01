@@ -16,6 +16,8 @@ import {
 import { DEFAULT_TILE_ID } from './constants';
 import { cellsEqual, coordinateKey, normalizeTiles, uniqueCells } from './util';
 
+const cloneTile = (tile: TilePlacement): TilePlacement => ({ ...tile });
+
 type UsePixiEditorActionsParams = {
   activeLayerId: Accessor<string>;
   clipboard: Accessor<TileClipboard | null>;
@@ -46,33 +48,33 @@ export const usePixiEditorActions = ({
     tiles: TilePlacement[],
     nextSelection?: TilePlacement[],
   ) => {
-    const changedTiles = tiles.filter((tile) => {
-      const existingTile = findTileAt(tile);
+    const normalizedTiles = normalizeTiles(tiles.map(cloneTile));
+    const normalizedSelection = normalizeTiles(
+      (nextSelection ?? normalizedTiles).map(cloneTile),
+    );
+    const activeTilesByCoordinate = new Map(
+      getActiveTiles().map((tile) => [coordinateKey(tile), tile]),
+    );
+    const changedTiles = normalizedTiles.filter((tile) => {
+      const existingTile = activeTilesByCoordinate.get(coordinateKey(tile));
 
       return !existingTile || existingTile.tileId !== tile.tileId;
     });
-    const normalizedTiles = normalizeTiles(changedTiles);
-    const normalizedSelection = nextSelection
-      ? normalizeTiles(nextSelection)
-      : normalizedTiles;
 
-    if (normalizedTiles.length === 0) {
-      if (nextSelection) {
-        setSelection(normalizedSelection);
-      }
-
+    if (changedTiles.length === 0) {
+      setSelection(normalizedSelection);
       return;
     }
 
-    const changedKeys = new Set(normalizedTiles.map(coordinateKey));
+    const changedKeys = new Set(changedTiles.map(coordinateKey));
     const replacedTiles = getActiveTiles().filter((tile) =>
       changedKeys.has(coordinateKey(tile)),
     );
 
     if (replacedTiles.length > 0) {
-      replaceTiles(activeLayerId(), normalizedTiles, replacedTiles);
+      replaceTiles(activeLayerId(), changedTiles, replacedTiles);
     } else {
-      addTiles(activeLayerId(), normalizedTiles);
+      addTiles(activeLayerId(), changedTiles);
     }
 
     setSelection(normalizedSelection);

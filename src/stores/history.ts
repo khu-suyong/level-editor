@@ -47,11 +47,52 @@ export type EditorHistoryState = {
 
 const coordinateKey = (cell: Cell) => `${cell.x},${cell.y}`;
 
+const cloneTile = (tile: TilePlacement): TilePlacement => ({ ...tile });
+
+const cloneMove = (move: TileMove): TileMove => ({
+  start: { ...move.start },
+  end: { ...move.end },
+  tileId: move.tileId,
+});
+
+const cloneHistoryAction = (
+  action: EditorHistoryAction,
+): EditorHistoryAction => {
+  if (action.type === 'add' || action.type === 'delete') {
+    return {
+      ...action,
+      tiles: action.tiles.map(cloneTile),
+    };
+  }
+
+  if (action.type === 'replace') {
+    return {
+      ...action,
+      add: action.add.map(cloneTile),
+      delete: action.delete.map(cloneTile),
+    };
+  }
+
+  return {
+    ...action,
+    moves: action.moves.map(cloneMove),
+  };
+};
+
+const cloneSnapshot = (snapshot: LevelData): LevelData => ({
+  ...snapshot,
+  tileTable: snapshot.tileTable.map((tile) => ({ ...tile })),
+  layers: snapshot.layers.map((layer) => ({
+    ...layer,
+    tiles: layer.tiles.map(cloneTile),
+  })),
+});
+
 const normalizeTiles = (tiles: TilePlacement[]) => {
   const tileMap = new Map<string, TilePlacement>();
 
   for (const tile of tiles) {
-    tileMap.set(coordinateKey(tile), tile);
+    tileMap.set(coordinateKey(tile), cloneTile(tile));
   }
 
   return [...tileMap.values()].sort((first, second) => {
@@ -72,7 +113,7 @@ const updateLayerTiles = (
   layers: snapshot.layers.map((layer) =>
     layer.id === layerId
       ? { ...layer, tiles: normalizeTiles(update(layer.tiles)) }
-      : layer,
+      : { ...layer, tiles: layer.tiles.map(cloneTile) },
   ),
 });
 
@@ -160,9 +201,7 @@ export const historyStore = map<EditorHistoryState>({
   latestSnapshot: null,
 });
 
-// computed
-
-export const currentSnapshot = computed(historyStore, (history) => {
+const getCurrentSnapshot = (history: EditorHistoryState) => {
   if (!history.latestSnapshot) {
     return null;
   }
@@ -170,7 +209,11 @@ export const currentSnapshot = computed(historyStore, (history) => {
   return history.actions
     .slice(history.actions.length - history.deltaIndex)
     .reduceRight(revertHistoryAction, history.latestSnapshot);
-});
+};
+
+// computed
+
+export const currentSnapshot = computed(historyStore, getCurrentSnapshot);
 
 export const canUndo = computed(
   historyStore,
@@ -188,27 +231,28 @@ export const initializeHistory = (snapshot: LevelData) => {
   historyStore.set({
     actions: [],
     deltaIndex: 0,
-    latestSnapshot: snapshot,
+    latestSnapshot: cloneSnapshot(snapshot),
   });
 };
 
 export const recordHistoryAction = (action: EditorHistoryAction) => {
   const history = historyStore.get();
-  const snapshot = currentSnapshot.get();
+  const snapshot = getCurrentSnapshot(history);
 
   if (!snapshot) {
     return;
   }
 
+  const nextAction = cloneHistoryAction(action);
   const activeActions =
     history.deltaIndex === 0
       ? history.actions
       : history.actions.slice(0, history.actions.length - history.deltaIndex);
 
   historyStore.set({
-    actions: [...activeActions, action],
+    actions: [...activeActions, nextAction],
     deltaIndex: 0,
-    latestSnapshot: applyHistoryAction(snapshot, action),
+    latestSnapshot: applyHistoryAction(snapshot, nextAction),
   });
 };
 

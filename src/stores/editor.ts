@@ -39,6 +39,9 @@ export const setZoom = (zoom: number) => editorStore.setKey('zoom', zoom);
 export const setCanvasReady = (canvasReady: boolean) =>
   editorStore.setKey('canvasReady', canvasReady);
 export const setSelection = (selection: TilePlacement[]) =>
-  editorStore.setKey('selection', selection);
+  editorStore.setKey(
+    'selection',
+    selection.map((tile) => ({ ...tile })),
+  );
 export const setClipboard = (clipboard: TileClipboard | null) =>
   editorStore.setKey('clipboard', clipboard);

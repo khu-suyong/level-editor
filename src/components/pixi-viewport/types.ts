@@ -6,9 +6,9 @@ export type PixiScene = {
   app: Application;
   background: Graphics;
   grid: Graphics;
-  overlay: Graphics;
-  preview: Graphics;
-  tileLayer: Graphics;
+  overlay: Container;
+  preview: Container;
+  tileLayer: Container;
   world: Container;
   pan: Cell;
 };
@@ -41,7 +41,13 @@ export type DragState =
       mode: 'select-rect';
       pointerId: number;
       startCell: Cell;
+      startScreen: Cell;
       baseSelection: TilePlacement[];
       additive: boolean;
       moved: boolean;
+    }
+  | {
+      mode: 'move-selection';
+      pointerId: number;
+      startCell: Cell;
     };

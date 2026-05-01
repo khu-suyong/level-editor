@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/solid';
-import { Box, Popup } from '@suis-ui/kit';
+import { Box, Popup, vars } from '@suis-ui/kit';
 import {
   ClipboardPaste,
   Copy,
@@ -34,11 +34,13 @@ export const PixiViewport = (props: PixiViewportProps) => {
     cell: { x: 0, y: 0 },
   });
   const [dragDelta, setDragDelta] = createSignal<Cell | null>(null);
+  const [erasePreviewCells, setErasePreviewCells] = createSignal<Cell[]>([]);
   const [paintPreviewCells, setPaintPreviewCells] = createSignal<Cell[]>([]);
   const [selectionRect, setSelectionRect] = createSignal<SelectionRect | null>(
     null,
   );
   const [isPanning, setIsPanning] = createSignal(false);
+  const [isMovingSelection, setIsMovingSelection] = createSignal(false);
 
   const activeLayerId = () => editor().activeLayerId;
   const clipboard = () => editor().clipboard;
@@ -56,6 +58,16 @@ export const PixiViewport = (props: PixiViewportProps) => {
 
     return menu ? !actions.findTileAt(menu.cell) : false;
   };
+  const isHoveringSelection = () => {
+    const cell = hoverCell();
+
+    return (
+      selectedTool() === 'select' &&
+      !isMovingSelection() &&
+      !!cell &&
+      selection().some((tile) => tile.x === cell.x && tile.y === cell.y)
+    );
+  };
 
   const actions = usePixiEditorActions({
     activeLayerId,
@@ -69,6 +81,7 @@ export const PixiViewport = (props: PixiViewportProps) => {
     clipboard,
     contextMenu,
     dragDelta,
+    erasePreviewCells,
     getHost,
     hoverCell,
     paintPreviewCells,
@@ -90,7 +103,9 @@ export const PixiViewport = (props: PixiViewportProps) => {
     selection,
     setContextMenu,
     setDragDelta,
+    setErasePreviewCells,
     setHoverCell,
+    setIsMovingSelection,
     setIsPanning,
     setPaintPreviewCells,
     setSelectionRect,
@@ -106,6 +121,8 @@ export const PixiViewport = (props: PixiViewportProps) => {
         classList={{
           [styles.isPanTool]: selectedTool() === 'pan',
           [styles.isPanning]: isPanning(),
+          [styles.isSelectionDraggable]: isHoveringSelection(),
+          [styles.isSelectionDragging]: isMovingSelection(),
         }}
       />
       <Popup
@@ -121,6 +138,7 @@ export const PixiViewport = (props: PixiViewportProps) => {
             bw={'md'}
             bc={'surface.high'}
             r={'md'}
+            style={{ 'box-shadow': vars.shadow.lg }}
           >
             <ItemGroup>
               <Item

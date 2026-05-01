@@ -36,8 +36,10 @@ type UsePixiViewportInputParams = {
   selection: Accessor<TilePlacement[]>;
   setContextMenu: Setter<ContextMenuState>;
   setDragDelta: Setter<Cell | null>;
+  setErasePreviewCells: Setter<Cell[]>;
   setHoverCell: Setter<Cell | null>;
   setIsPanning: Setter<boolean>;
+  setIsMovingSelection: Setter<boolean>;
   setPaintPreviewCells: Setter<Cell[]>;
   setSelectionRect: Setter<SelectionRect | null>;
   setZoom: (zoom: number) => void;
@@ -52,6 +54,8 @@ type PointerCell = {
 
 type SelectRectDragState = Extract<DragState, { mode: 'select-rect' }>;
 
+const SELECTION_DRAG_THRESHOLD = 4;
+
 export const usePixiViewportInput = ({
   actions,
   contextMenu,
@@ -63,8 +67,10 @@ export const usePixiViewportInput = ({
   selection,
   setContextMenu,
   setDragDelta,
+  setErasePreviewCells,
   setHoverCell,
   setIsPanning,
+  setIsMovingSelection,
   setPaintPreviewCells,
   setSelectionRect,
   setZoom,
@@ -95,7 +101,9 @@ export const usePixiViewportInput = ({
     dragState = null;
     isSpaceDown = false;
     setDragDelta(null);
+    setErasePreviewCells([]);
     setIsPanning(false);
+    setIsMovingSelection(false);
     setPaintPreviewCells([]);
     setSelectionRect(null);
   };
@@ -155,22 +163,34 @@ export const usePixiViewportInput = ({
       lastCell: cell,
       cells: [cell],
     };
+    setErasePreviewCells([cell]);
+  };
+
+  const beginMoveSelection = (pointerId: number, cell: Cell) => {
+    dragState = {
+      mode: 'move-selection',
+      pointerId,
+      startCell: cell,
+    };
+    setDragDelta({ x: 0, y: 0 });
+    setIsMovingSelection(true);
   };
 
   const beginSelectionRect = (
     pointerId: number,
     cell: Cell,
+    screenPoint: Cell,
     additive: boolean,
   ) => {
     dragState = {
       mode: 'select-rect',
       pointerId,
       startCell: cell,
-      baseSelection: selection(),
+      startScreen: screenPoint,
+      baseSelection: selection().map((tile) => ({ ...tile })),
       additive,
       moved: false,
     };
-    setSelectionRect({ start: cell, end: cell });
   };
 
   const updateDrag = (event: PointerEvent, cell: Cell, screenPoint: Cell) => {
@@ -203,17 +223,33 @@ export const usePixiViewportInput = ({
 
       if (dragState.mode === 'paint') {
         setPaintPreviewCells(uniqueCells(dragState.cells));
+      } else {
+        setErasePreviewCells(uniqueCells(dragState.cells));
       }
       return;
     }
 
-    if (
-      dragState.mode === 'select-rect' &&
-      !cellsEqual(dragState.startCell, cell)
-    ) {
+    if (dragState.mode === 'move-selection') {
+      setDragDelta({
+        x: cell.x - dragState.startCell.x,
+        y: cell.y - dragState.startCell.y,
+      });
+      return;
+    }
+
+    if (dragState.mode === 'select-rect') {
+      const movedFarEnough =
+        Math.abs(screenPoint.x - dragState.startScreen.x) >=
+          SELECTION_DRAG_THRESHOLD ||
+        Math.abs(screenPoint.y - dragState.startScreen.y) >=
+          SELECTION_DRAG_THRESHOLD;
+
+      if (!movedFarEnough || cellsEqual(dragState.startCell, cell)) {
+        return;
+      }
+
       dragState.moved = true;
       setSelectionRect({ start: dragState.startCell, end: cell });
-      return;
     }
   };
 
@@ -250,6 +286,18 @@ export const usePixiViewportInput = ({
 
     if (dragState.mode === 'erase') {
       actions.eraseCells(dragState.cells);
+      return;
+    }
+
+    if (dragState.mode === 'move-selection') {
+      if (!cell) {
+        return;
+      }
+
+      actions.moveSelection({
+        x: cell.x - dragState.startCell.x,
+        y: cell.y - dragState.startCell.y,
+      });
       return;
     }
 
@@ -312,7 +360,21 @@ export const usePixiViewportInput = ({
       return;
     }
 
-    beginSelectionRect(event.pointerId, pointerCell.cell, event.shiftKey);
+    if (
+      selectedTool() === 'select' &&
+      !event.shiftKey &&
+      selection().some((tile) => cellsEqual(tile, pointerCell.cell))
+    ) {
+      beginMoveSelection(event.pointerId, pointerCell.cell);
+      return;
+    }
+
+    beginSelectionRect(
+      event.pointerId,
+      pointerCell.cell,
+      pointerCell.screenPoint,
+      event.shiftKey,
+    );
   };
 
   const handlePointerMove = (event: PointerEvent) => {

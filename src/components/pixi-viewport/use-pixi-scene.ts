@@ -1,5 +1,5 @@
 import Color from 'color';
-import { Application, Container, Graphics } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import type { Accessor } from 'solid-js';
 import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 
@@ -9,7 +9,7 @@ import { type EditorTool, setCanvasReady } from '@/stores/editor';
 import { TILE_SIZE } from './constants';
 import * as styles from './pixi-viewport.css';
 import type { ContextMenuState, PixiScene, SelectionRect } from './types';
-import { coordinateKey, getCellRect, tileColor } from './util';
+import { getCellRect, tileColor } from './util';
 
 type UsePixiSceneParams = {
   activeLayerId: Accessor<string>;
@@ -19,6 +19,7 @@ type UsePixiSceneParams = {
   } | null>;
   contextMenu: Accessor<ContextMenuState>;
   dragDelta: Accessor<Cell | null>;
+  erasePreviewCells: Accessor<Cell[]>;
   getHost: () => HTMLDivElement;
   hoverCell: Accessor<Cell | null>;
   paintPreviewCells: Accessor<Cell[]>;
@@ -150,12 +151,84 @@ const cssColorToHex = (color: string) => {
   }
 };
 
+const clearContainer = (container: Container) => {
+  for (const child of container.removeChildren()) {
+    child.destroy();
+  }
+};
+
+const createRectSprite = (
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  color: number,
+  alpha: number,
+) => {
+  const sprite = new Sprite(Texture.WHITE);
+
+  sprite.x = x;
+  sprite.y = y;
+  sprite.width = width;
+  sprite.height = height;
+  sprite.tint = color;
+  sprite.alpha = alpha;
+
+  return sprite;
+};
+
+const drawErasePreviewTile = (
+  rect: Cell,
+  tileId: number,
+  lineWidth: number,
+) => {
+  const previewTile = new Graphics();
+  const inset = 1;
+  const size = TILE_SIZE - inset * 2;
+  const stripeStep = 7;
+
+  previewTile
+    .rect(rect.x + inset, rect.y + inset, size, size)
+    .fill({ color: tileColor(tileId), alpha: 0.08 })
+    .stroke({
+      color: 0xf87171,
+      alpha: 0.82,
+      width: lineWidth,
+    });
+
+  for (let offset = -size; offset <= size; offset += stripeStep) {
+    const start =
+      offset >= 0
+        ? { x: rect.x + inset + offset, y: rect.y + inset }
+        : { x: rect.x + inset, y: rect.y + inset - offset };
+    const end =
+      offset >= 0
+        ? {
+            x: rect.x + inset + size,
+            y: rect.y + inset + size - offset,
+          }
+        : {
+            x: rect.x + inset + size + offset,
+            y: rect.y + inset + size,
+          };
+
+    previewTile.moveTo(start.x, start.y).lineTo(end.x, end.y).stroke({
+      color: 0xf87171,
+      alpha: 0.86,
+      width: lineWidth,
+    });
+  }
+
+  return previewTile;
+};
+
 export const usePixiScene = ({
   activeLayerId,
   brushTileId,
   clipboard,
   contextMenu,
   dragDelta,
+  erasePreviewCells,
   getHost,
   hoverCell,
   paintPreviewCells,
@@ -251,11 +324,8 @@ export const usePixiScene = ({
   const drawTiles = (current: PixiScene) => {
     const scale = zoom() / 100;
     const lineWidth = 1 / scale;
-    const movingSelectedKeys = dragDelta()
-      ? new Set(selection().map(coordinateKey))
-      : null;
 
-    current.tileLayer.clear();
+    clearContainer(current.tileLayer);
 
     for (const layer of [...snapshot().layers].sort(
       (first, second) => first.order - second.order,
@@ -263,29 +333,37 @@ export const usePixiScene = ({
       const isActiveLayer = layer.id === activeLayerId();
 
       for (const tile of layer.tiles) {
-        if (isActiveLayer && movingSelectedKeys?.has(coordinateKey(tile))) {
-          continue;
-        }
-
         const rect = getCellRect(tile);
+        const tileInset = 1;
+        const tileSize = TILE_SIZE - tileInset * 2;
+        const borderColor = isActiveLayer ? 0x93c5fd : 0x475569;
+        const borderAlpha = isActiveLayer ? 0.55 : 0.32;
+        const fillInset = tileInset + lineWidth;
 
-        current.tileLayer
-          .rect(rect.x + 1, rect.y + 1, TILE_SIZE - 2, TILE_SIZE - 2)
-          .fill({
-            color: tileColor(tile.tileId),
-            alpha: isActiveLayer ? 0.82 : 0.36,
-          })
-          .stroke({
-            color: isActiveLayer ? 0x93c5fd : 0x475569,
-            alpha: isActiveLayer ? 0.55 : 0.32,
-            width: lineWidth,
-          });
+        current.tileLayer.addChild(
+          createRectSprite(
+            rect.x + tileInset,
+            rect.y + tileInset,
+            tileSize,
+            tileSize,
+            borderColor,
+            borderAlpha,
+          ),
+          createRectSprite(
+            rect.x + fillInset,
+            rect.y + fillInset,
+            TILE_SIZE - fillInset * 2,
+            TILE_SIZE - fillInset * 2,
+            tileColor(tile.tileId),
+            isActiveLayer ? 0.82 : 0.36,
+          ),
+        );
       }
     }
   };
 
   const drawPreview = (current: PixiScene) => {
-    current.preview.clear();
+    clearContainer(current.preview);
 
     const menuState = contextMenu();
 
@@ -301,8 +379,9 @@ export const usePixiScene = ({
 
       for (const cell of Array.isArray(cells) ? cells : cells ? [cells] : []) {
         const rect = getCellRect(cell);
+        const previewTile = new Graphics();
 
-        current.preview
+        previewTile
           .rect(rect.x + 1, rect.y + 1, TILE_SIZE - 2, TILE_SIZE - 2)
           .fill({ color: tileColor(brushTileId()), alpha: 0.24 })
           .stroke({
@@ -310,6 +389,36 @@ export const usePixiScene = ({
             alpha: 0.56,
             width: lineWidth,
           });
+        current.preview.addChild(previewTile);
+      }
+      return;
+    }
+
+    if (selectedTool() === 'erase') {
+      const previewCells = erasePreviewCells();
+      const cells = previewCells.length > 0 ? previewCells : hoverCell();
+      const targetCells = Array.isArray(cells) ? cells : cells ? [cells] : [];
+      const activeLayer = snapshot().layers.find(
+        (layer) => layer.id === activeLayerId(),
+      );
+
+      if (!activeLayer) {
+        return;
+      }
+
+      for (const cell of targetCells) {
+        const tile = activeLayer.tiles.find(
+          (candidate) => candidate.x === cell.x && candidate.y === cell.y,
+        );
+
+        if (!tile) {
+          continue;
+        }
+
+        const rect = getCellRect(tile);
+        current.preview.addChild(
+          drawErasePreviewTile(rect, tile.tileId, lineWidth),
+        );
       }
       return;
     }
@@ -330,8 +439,9 @@ export const usePixiScene = ({
         x: targetCell.x + tile.x,
         y: targetCell.y + tile.y,
       });
+      const previewTile = new Graphics();
 
-      current.preview
+      previewTile
         .rect(rect.x + 1, rect.y + 1, TILE_SIZE - 2, TILE_SIZE - 2)
         .fill({ color: tileColor(tile.tileId), alpha: 0.24 })
         .stroke({
@@ -339,6 +449,7 @@ export const usePixiScene = ({
           alpha: 0.56,
           width: lineWidth,
         });
+      current.preview.addChild(previewTile);
     }
   };
 
@@ -349,14 +460,16 @@ export const usePixiScene = ({
     const hover = hoverCell();
     const rectSelection = selectionRect();
 
-    current.overlay.clear();
+    clearContainer(current.overlay);
 
     if (hover) {
       const rect = getCellRect(hover);
+      const hoverCellGraphic = new Graphics();
 
-      current.overlay
+      hoverCellGraphic
         .rect(rect.x, rect.y, TILE_SIZE, TILE_SIZE)
         .stroke({ color: 0xf8fafc, alpha: 0.42, width: lineWidth });
+      current.overlay.addChild(hoverCellGraphic);
     }
 
     for (const tile of selection()) {
@@ -364,7 +477,7 @@ export const usePixiScene = ({
         x: tile.x + (delta?.x ?? 0),
         y: tile.y + (delta?.y ?? 0),
       });
-      const selectedTile = current.overlay.rect(
+      const selectedTile = new Graphics().rect(
         rect.x + 1,
         rect.y + 1,
         TILE_SIZE - 2,
@@ -376,6 +489,7 @@ export const usePixiScene = ({
       }
 
       selectedTile.stroke({ color: 0xfacc15, alpha: 0.9, width: lineWidth });
+      current.overlay.addChild(selectedTile);
     }
 
     if (rectSelection) {
@@ -384,7 +498,9 @@ export const usePixiScene = ({
       const minY = Math.min(rectSelection.start.y, rectSelection.end.y);
       const maxY = Math.max(rectSelection.start.y, rectSelection.end.y);
 
-      current.overlay
+      const selectionRectGraphic = new Graphics();
+
+      selectionRectGraphic
         .rect(
           minX * TILE_SIZE,
           minY * TILE_SIZE,
@@ -393,15 +509,19 @@ export const usePixiScene = ({
         )
         .fill({ color: 0x38bdf8, alpha: 0.08 })
         .stroke({ color: 0x38bdf8, alpha: 0.78, width: lineWidth });
+      current.overlay.addChild(selectionRectGraphic);
     }
   };
 
-  const redrawScene = (current: PixiScene) => {
+  const updateWorldTransform = (current: PixiScene) => {
     const scale = zoom() / 100;
 
     current.world.position.set(current.pan.x, current.pan.y);
     current.world.scale.set(scale, -scale);
+  };
 
+  const redrawScene = (current: PixiScene) => {
+    updateWorldTransform(current);
     drawBackground(current);
     drawGrid(current);
     drawTiles(current);
@@ -428,9 +548,9 @@ export const usePixiScene = ({
     const app = new Application();
     const background = new Graphics();
     const grid = new Graphics();
-    const tileLayer = new Graphics();
-    const preview = new Graphics();
-    const overlay = new Graphics();
+    const tileLayer = new Container();
+    const preview = new Container();
+    const overlay = new Container();
     const world = new Container();
     const resizeObserver = new ResizeObserver(() => {
       const current = scene();
@@ -494,7 +614,30 @@ export const usePixiScene = ({
       return;
     }
 
-    redrawScene(current);
+    updateWorldTransform(current);
+    drawBackground(current);
+    drawGrid(current);
+    drawTiles(current);
+  });
+
+  createEffect(() => {
+    const current = scene();
+
+    if (!current) {
+      return;
+    }
+
+    drawPreview(current);
+  });
+
+  createEffect(() => {
+    const current = scene();
+
+    if (!current) {
+      return;
+    }
+
+    drawOverlay(current);
   });
 
   return {
