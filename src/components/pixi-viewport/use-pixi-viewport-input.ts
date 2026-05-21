@@ -8,6 +8,8 @@ import { MAX_ZOOM, MIN_ZOOM, TILE_SIZE } from './constants';
 import type {
   ContextMenuState,
   DragState,
+  LayerMoveState,
+  LayerResizeState,
   PixiScene,
   SelectionRect,
 } from './types';
@@ -17,8 +19,16 @@ import {
   cellsEqual,
   clamp,
   coordinateKey,
+  getCellEdgePoint,
+  getLayerResizeHandleAt,
+  getResizedLayerBounds,
+  getTileBounds,
+  isCellInBounds,
   isEditableTarget,
+  moveLayerBounds,
+  moveLayerTiles,
   normalizeTiles,
+  scaleLayerTiles,
   uniqueCells,
 } from './util';
 
@@ -30,7 +40,11 @@ type UsePixiViewportInputParams = {
   scene: Accessor<PixiScene | null>;
   sceneApi: Pick<
     PixiSceneApi,
-    'getHostPoint' | 'redrawScene' | 'resetView' | 'screenToCell'
+    | 'getHostPoint'
+    | 'redrawScene'
+    | 'resetView'
+    | 'screenToCell'
+    | 'screenToWorld'
   >;
   selectedTool: Accessor<EditorTool>;
   selection: Accessor<TilePlacement[]>;
@@ -40,6 +54,8 @@ type UsePixiViewportInputParams = {
   setHoverCell: Setter<Cell | null>;
   setIsPanning: Setter<boolean>;
   setIsMovingSelection: Setter<boolean>;
+  setLayerMovePreview: Setter<LayerMoveState | null>;
+  setLayerResizePreview: Setter<LayerResizeState | null>;
   setPaintPreviewCells: Setter<Cell[]>;
   setSelectionRect: Setter<SelectionRect | null>;
   setZoom: (zoom: number) => void;
@@ -53,8 +69,13 @@ type PointerCell = {
 };
 
 type SelectRectDragState = Extract<DragState, { mode: 'select-rect' }>;
+type LayerMoveDragState = Extract<DragState, { mode: 'move-layer' }>;
+type LayerResizeDragState = Extract<DragState, { mode: 'resize-layer' }>;
 
 const SELECTION_DRAG_THRESHOLD = 4;
+const LAYER_RESIZE_HANDLE_HIT_RADIUS = 8;
+
+const cloneTile = (tile: TilePlacement): TilePlacement => ({ ...tile });
 
 export const usePixiViewportInput = ({
   actions,
@@ -71,6 +92,8 @@ export const usePixiViewportInput = ({
   setHoverCell,
   setIsPanning,
   setIsMovingSelection,
+  setLayerMovePreview,
+  setLayerResizePreview,
   setPaintPreviewCells,
   setSelectionRect,
   setZoom,
@@ -104,6 +127,8 @@ export const usePixiViewportInput = ({
     setErasePreviewCells([]);
     setIsPanning(false);
     setIsMovingSelection(false);
+    setLayerMovePreview(null);
+    setLayerResizePreview(null);
     setPaintPreviewCells([]);
     setSelectionRect(null);
   };
@@ -176,6 +201,122 @@ export const usePixiViewportInput = ({
     setIsMovingSelection(true);
   };
 
+  const getLayerMoveHit = (cell: Cell) => {
+    const sourceTiles = actions.getActiveTiles().map(cloneTile);
+    const sourceBounds = getTileBounds(sourceTiles);
+
+    if (!sourceBounds || !isCellInBounds(cell, sourceBounds)) {
+      return null;
+    }
+
+    return {
+      sourceBounds,
+      sourceTiles,
+    };
+  };
+
+  const getLayerResizeHit = (current: PixiScene, screenPoint: Cell) => {
+    const sourceTiles = actions.getActiveTiles().map(cloneTile);
+    const sourceBounds = getTileBounds(sourceTiles);
+
+    if (!sourceBounds) {
+      return null;
+    }
+
+    const worldPoint = sceneApi.screenToWorld(current, screenPoint);
+    const hitRadius = LAYER_RESIZE_HANDLE_HIT_RADIUS / (zoom() / 100);
+    const handle = getLayerResizeHandleAt(sourceBounds, worldPoint, hitRadius);
+
+    if (!handle) {
+      return null;
+    }
+
+    return {
+      handle,
+      sourceBounds,
+      sourceTiles,
+    };
+  };
+
+  const createLayerMovePreview = (
+    state: LayerMoveDragState,
+    targetCell: Cell,
+  ): LayerMoveState => {
+    const delta = {
+      x: targetCell.x - state.startCell.x,
+      y: targetCell.y - state.startCell.y,
+    };
+
+    return {
+      sourceBounds: state.sourceBounds,
+      targetBounds: moveLayerBounds(state.sourceBounds, delta),
+      previewTiles: moveLayerTiles(state.sourceTiles, delta),
+    };
+  };
+
+  const createLayerResizePreview = (
+    state: LayerResizeDragState,
+    current: PixiScene,
+    screenPoint: Cell,
+  ): LayerResizeState => {
+    const edgePoint = getCellEdgePoint(
+      sceneApi.screenToWorld(current, screenPoint),
+    );
+    const targetBounds = getResizedLayerBounds(
+      state.sourceBounds,
+      state.handle,
+      edgePoint,
+    );
+
+    return {
+      handle: state.handle,
+      sourceBounds: state.sourceBounds,
+      targetBounds,
+      previewTiles: scaleLayerTiles(
+        state.sourceTiles,
+        state.sourceBounds,
+        targetBounds,
+      ),
+    };
+  };
+
+  const beginLayerResize = (
+    pointerId: number,
+    resizeHit: NonNullable<ReturnType<typeof getLayerResizeHit>>,
+  ) => {
+    dragState = {
+      mode: 'resize-layer',
+      pointerId,
+      handle: resizeHit.handle,
+      sourceBounds: resizeHit.sourceBounds,
+      sourceTiles: resizeHit.sourceTiles,
+    };
+    setLayerResizePreview({
+      handle: resizeHit.handle,
+      sourceBounds: resizeHit.sourceBounds,
+      targetBounds: resizeHit.sourceBounds,
+      previewTiles: resizeHit.sourceTiles.map(cloneTile),
+    });
+  };
+
+  const beginLayerMove = (
+    pointerId: number,
+    cell: Cell,
+    screenPoint: Cell,
+    moveHit: NonNullable<ReturnType<typeof getLayerMoveHit>>,
+  ) => {
+    dragState = {
+      mode: 'move-layer',
+      pointerId,
+      startCell: cell,
+      startScreen: screenPoint,
+      lastCell: cell,
+      sourceBounds: moveHit.sourceBounds,
+      sourceTiles: moveHit.sourceTiles,
+      moved: false,
+    };
+  };
+
   const beginSelectionRect = (
     pointerId: number,
     cell: Cell,
@@ -237,6 +378,38 @@ export const usePixiViewportInput = ({
       return;
     }
 
+    if (dragState.mode === 'move-layer') {
+      dragState.lastCell = cell;
+
+      const hasCellDelta = !cellsEqual(dragState.startCell, cell);
+      const movedFarEnough =
+        Math.abs(screenPoint.x - dragState.startScreen.x) >=
+          SELECTION_DRAG_THRESHOLD ||
+        Math.abs(screenPoint.y - dragState.startScreen.y) >=
+          SELECTION_DRAG_THRESHOLD;
+
+      if (!hasCellDelta || (!dragState.moved && !movedFarEnough)) {
+        return;
+      }
+
+      dragState.moved = true;
+      setLayerMovePreview(createLayerMovePreview(dragState, cell));
+      return;
+    }
+
+    if (dragState.mode === 'resize-layer') {
+      const current = scene();
+
+      if (!current) {
+        return;
+      }
+
+      setLayerResizePreview(
+        createLayerResizePreview(dragState, current, screenPoint),
+      );
+      return;
+    }
+
     if (dragState.mode === 'select-rect') {
       const movedFarEnough =
         Math.abs(screenPoint.x - dragState.startScreen.x) >=
@@ -274,10 +447,18 @@ export const usePixiViewportInput = ({
     );
   };
 
-  const commitDrag = (cell: Cell | null) => {
+  const commitLayerClickSelection = (cell: Cell) => {
+    const clickedTile = actions.findTileAt(cell);
+
+    setSelection(clickedTile ? [clickedTile] : []);
+  };
+
+  const commitDrag = (pointerCell: PointerCell | null) => {
     if (!dragState) {
       return;
     }
+
+    const cell = pointerCell?.cell ?? null;
 
     if (dragState.mode === 'paint') {
       actions.paintCells(dragState.cells);
@@ -298,6 +479,42 @@ export const usePixiViewportInput = ({
         x: cell.x - dragState.startCell.x,
         y: cell.y - dragState.startCell.y,
       });
+      return;
+    }
+
+    if (dragState.mode === 'move-layer') {
+      const targetCell = pointerCell?.cell ?? dragState.lastCell;
+
+      if (!dragState.moved) {
+        commitLayerClickSelection(targetCell);
+        return;
+      }
+
+      actions.moveActiveLayer(dragState.sourceTiles, {
+        x: targetCell.x - dragState.startCell.x,
+        y: targetCell.y - dragState.startCell.y,
+      });
+      return;
+    }
+
+    if (dragState.mode === 'resize-layer') {
+      const resizePreview = pointerCell
+        ? createLayerResizePreview(
+            dragState,
+            pointerCell.current,
+            pointerCell.screenPoint,
+          )
+        : {
+            handle: dragState.handle,
+            sourceBounds: dragState.sourceBounds,
+            targetBounds: dragState.sourceBounds,
+            previewTiles: dragState.sourceTiles.map(cloneTile),
+          };
+
+      actions.resizeActiveLayer(
+        dragState.sourceTiles,
+        resizePreview.previewTiles,
+      );
       return;
     }
 
@@ -326,7 +543,7 @@ export const usePixiViewportInput = ({
     const pointerCell = getPointerCell(event);
 
     safeReleasePointerCapture(event.pointerId);
-    commitDrag(pointerCell?.cell ?? null);
+    commitDrag(pointerCell);
     resetTransientInputState();
   };
 
@@ -360,6 +577,18 @@ export const usePixiViewportInput = ({
       return;
     }
 
+    if (selectedTool() === 'select') {
+      const resizeHit = getLayerResizeHit(
+        pointerCell.current,
+        pointerCell.screenPoint,
+      );
+
+      if (resizeHit) {
+        beginLayerResize(event.pointerId, resizeHit);
+        return;
+      }
+    }
+
     if (
       selectedTool() === 'select' &&
       !event.shiftKey &&
@@ -367,6 +596,20 @@ export const usePixiViewportInput = ({
     ) {
       beginMoveSelection(event.pointerId, pointerCell.cell);
       return;
+    }
+
+    if (selectedTool() === 'select' && !event.shiftKey) {
+      const moveHit = getLayerMoveHit(pointerCell.cell);
+
+      if (moveHit) {
+        beginLayerMove(
+          event.pointerId,
+          pointerCell.cell,
+          pointerCell.screenPoint,
+          moveHit,
+        );
+        return;
+      }
     }
 
     beginSelectionRect(

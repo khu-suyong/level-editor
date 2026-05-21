@@ -13,7 +13,7 @@
   "dependencies": {
     "@nanostores/solid": "1.1.1",
     "@solidjs/router": "0.16.1",
-    "@suis-ui/kit": "0.1.0",
+    "@suis-ui/kit": "0.3.0",
     "@vanilla-extract/css": "1.20.1",
     "@vanilla-extract/dynamic": "2.1.5",
     "@vanilla-extract/recipes": "0.5.7",

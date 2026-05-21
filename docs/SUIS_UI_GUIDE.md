@@ -45,6 +45,7 @@ import {
   Box,
   Button,
   CheckBox,
+  Item,
   Popup,
   Select,
   Input,
@@ -132,8 +133,9 @@ const [theme, setTheme] = useTheme();
 ## Component guidance
 
 - `Box`: use for layout, spacing, semantic colors, text styles, borders, fixed sizing, and polymorphic rendering.
-- `Button`: use for actions. Variants are `default`, `primary`, `secondary`, and `ghost`; sizes are `xs`, `sm`, `md`, `lg`, and `xl`; use `type="icon"` for icon-only buttons.
+- `Button`: use for actions. Variants are `default`, `primary`, `secondary`, and `ghost`; sizes are `xs`, `sm`, `md`, `lg`, and `xl`; use `type="icon"` for icon-only buttons. `type` is a kit layout prop, not the native HTML button type; pass native submit/reset type through the `props` escape hatch when needed.
 - `CheckBox`: use for boolean state; use `checked` and `onChecked` for controlled state.
+- `Item`: use for row-style content and menu rows. Pass content through `media`, `title`, `description`, and `action` slots; render interactive rows with `as="button"` or `as="a"` instead of local item wrappers.
 - `Popup`: use for floating content; pass floating UI through `element` and the trigger as children.
 - `Select`: use for single selection; support string data, `{ value, label }` data, and grouped `{ label, options }` data.
 - `Input`: use for native input controls with kit styling.

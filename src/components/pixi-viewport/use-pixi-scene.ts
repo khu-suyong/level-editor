@@ -8,8 +8,20 @@ import { type EditorTool, setCanvasReady } from '@/stores/editor';
 
 import { TILE_SIZE } from './constants';
 import * as styles from './pixi-viewport.css';
-import type { ContextMenuState, PixiScene, SelectionRect } from './types';
-import { getCellRect, tileColor } from './util';
+import type {
+  ContextMenuState,
+  LayerBounds,
+  LayerMoveState,
+  LayerResizeState,
+  PixiScene,
+  SelectionRect,
+} from './types';
+import {
+  getCellRect,
+  getLayerResizeHandlePoints,
+  getTileBounds,
+  tileColor,
+} from './util';
 
 type UsePixiSceneParams = {
   activeLayerId: Accessor<string>;
@@ -22,6 +34,8 @@ type UsePixiSceneParams = {
   erasePreviewCells: Accessor<Cell[]>;
   getHost: () => HTMLDivElement;
   hoverCell: Accessor<Cell | null>;
+  layerMovePreview: Accessor<LayerMoveState | null>;
+  layerResizePreview: Accessor<LayerResizeState | null>;
   paintPreviewCells: Accessor<Cell[]>;
   selectedTool: Accessor<EditorTool>;
   selection: Accessor<TilePlacement[]>;
@@ -32,6 +46,7 @@ type UsePixiSceneParams = {
 };
 
 const DEFAULT_VIEWPORT_BACKGROUND_COLOR = 0x101827;
+const LAYER_RESIZE_HANDLE_SIZE = 10;
 
 const clampColorChannel = (value: number) =>
   Math.min(255, Math.max(0, Math.round(value)));
@@ -222,6 +237,54 @@ const drawErasePreviewTile = (
   return previewTile;
 };
 
+const drawLayerResizeTilePreview = (tile: TilePlacement, lineWidth: number) => {
+  const rect = getCellRect(tile);
+  const tileInset = 1;
+  const previewTile = new Graphics();
+
+  previewTile
+    .rect(
+      rect.x + tileInset,
+      rect.y + tileInset,
+      TILE_SIZE - tileInset * 2,
+      TILE_SIZE - tileInset * 2,
+    )
+    .fill({ color: tileColor(tile.tileId), alpha: 0.24 })
+    .stroke({ color: 0xfacc15, alpha: 0.34, width: lineWidth });
+
+  return previewTile;
+};
+
+const drawLayerResizeFrame = (
+  bounds: LayerBounds,
+  lineWidth: number,
+  handleSize: number,
+) => {
+  const layerFrame = new Graphics();
+  const x = bounds.left * TILE_SIZE;
+  const y = bounds.top * TILE_SIZE;
+  const width = bounds.width * TILE_SIZE;
+  const height = bounds.height * TILE_SIZE;
+
+  layerFrame
+    .rect(x, y, width, height)
+    .stroke({ color: 0xfacc15, alpha: 0.94, width: lineWidth });
+
+  for (const point of getLayerResizeHandlePoints(bounds)) {
+    layerFrame
+      .rect(
+        point.x - handleSize / 2,
+        point.y - handleSize / 2,
+        handleSize,
+        handleSize,
+      )
+      .fill({ color: 0x101827, alpha: 0.96 })
+      .stroke({ color: 0xfacc15, alpha: 0.94, width: lineWidth });
+  }
+
+  return layerFrame;
+};
+
 export const usePixiScene = ({
   activeLayerId,
   brushTileId,
@@ -231,6 +294,8 @@ export const usePixiScene = ({
   erasePreviewCells,
   getHost,
   hoverCell,
+  layerMovePreview,
+  layerResizePreview,
   paintPreviewCells,
   selectedTool,
   selection,
@@ -456,9 +521,12 @@ export const usePixiScene = ({
   const drawOverlay = (current: PixiScene) => {
     const scale = zoom() / 100;
     const lineWidth = 2 / scale;
+    const handleSize = LAYER_RESIZE_HANDLE_SIZE / scale;
     const delta = dragDelta();
     const hover = hoverCell();
     const rectSelection = selectionRect();
+    const movePreview = layerMovePreview();
+    const resizePreview = layerResizePreview();
 
     clearContainer(current.overlay);
 
@@ -472,7 +540,7 @@ export const usePixiScene = ({
       current.overlay.addChild(hoverCellGraphic);
     }
 
-    for (const tile of selection()) {
+    for (const tile of movePreview ? [] : selection()) {
       const rect = getCellRect({
         x: tile.x + (delta?.x ?? 0),
         y: tile.y + (delta?.y ?? 0),
@@ -490,6 +558,42 @@ export const usePixiScene = ({
 
       selectedTile.stroke({ color: 0xfacc15, alpha: 0.9, width: lineWidth });
       current.overlay.addChild(selectedTile);
+    }
+
+    if (selectedTool() === 'select') {
+      const activeLayer = snapshot().layers.find(
+        (layer) => layer.id === activeLayerId(),
+      );
+      const layerBounds =
+        movePreview?.targetBounds ??
+        resizePreview?.targetBounds ??
+        getTileBounds(activeLayer?.tiles ?? []);
+
+      const transformPreviewTiles =
+        movePreview?.previewTiles ?? resizePreview?.previewTiles ?? [];
+
+      for (const tile of transformPreviewTiles) {
+        current.overlay.addChild(drawLayerResizeTilePreview(tile, lineWidth));
+      }
+
+      if (movePreview) {
+        const sourceFrame = new Graphics();
+        const x = movePreview.sourceBounds.left * TILE_SIZE;
+        const y = movePreview.sourceBounds.top * TILE_SIZE;
+        const width = movePreview.sourceBounds.width * TILE_SIZE;
+        const height = movePreview.sourceBounds.height * TILE_SIZE;
+
+        sourceFrame
+          .rect(x, y, width, height)
+          .stroke({ color: 0xfacc15, alpha: 0.26, width: lineWidth });
+        current.overlay.addChild(sourceFrame);
+      }
+
+      if (layerBounds) {
+        current.overlay.addChild(
+          drawLayerResizeFrame(layerBounds, lineWidth, handleSize),
+        );
+      }
     }
 
     if (rectSelection) {

@@ -40,33 +40,39 @@ export const contextMenu = style({
   pointerEvents: 'none',
 });
 
-export const contextMenuHeader = style({
-  padding: '0.35rem 0.55rem',
-  color: 'rgb(148 163 184)',
-  fontSize: '0.75rem',
-  lineHeight: 1.3,
+export const contextMenuPanel = style({
+  margin: 0,
+  padding: 0,
+  listStyle: 'none',
+  overflow: 'hidden',
 });
 
-export const contextMenuButton = style({
-  width: '100%',
-  minHeight: '2rem',
-  padding: '0 0.55rem',
-  border: 0,
-  borderRadius: '0.35rem',
-  background: 'transparent',
-  color: 'inherit',
-  cursor: 'pointer',
-  font: 'inherit',
-  fontSize: '0.8125rem',
-  lineHeight: 1,
-  textAlign: 'left',
+export const contextMenuGroup = style({
+  padding: vars.size.space.xs,
+  borderRadius: vars.size.space.md,
+  overflow: 'hidden',
 
-  ':hover': {
-    background: 'rgb(51 65 85 / 0.72)',
+  selectors: {
+    '&:has( + li)': {
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+    },
+    'li + &': {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderTopStyle: 'solid',
+      borderTopWidth: vars.size.line.md,
+      borderTopColor: vars.color.surface.higher,
+    },
   },
+});
 
-  ':disabled': {
-    color: 'rgb(100 116 139)',
-    cursor: 'not-allowed',
-  },
+export const contextMenuList = style({
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'flex-start',
+  alignItems: 'stretch',
+  margin: 0,
+  padding: 0,
+  listStyle: 'none',
 });

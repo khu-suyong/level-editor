@@ -25,6 +25,36 @@ export type SelectionRect = {
   end: Cell;
 };
 
+export type LayerBounds = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+export type LayerResizeHandle =
+  | 'n'
+  | 'ne'
+  | 'e'
+  | 'se'
+  | 's'
+  | 'sw'
+  | 'w'
+  | 'nw';
+
+export type LayerResizeState = {
+  handle: LayerResizeHandle;
+  sourceBounds: LayerBounds;
+  targetBounds: LayerBounds;
+  previewTiles: TilePlacement[];
+};
+
+export type LayerMoveState = {
+  sourceBounds: LayerBounds;
+  targetBounds: LayerBounds;
+  previewTiles: TilePlacement[];
+};
+
 export type DragState =
   | {
       mode: 'pan';
@@ -50,4 +80,21 @@ export type DragState =
       mode: 'move-selection';
       pointerId: number;
       startCell: Cell;
+    }
+  | {
+      mode: 'move-layer';
+      pointerId: number;
+      startCell: Cell;
+      startScreen: Cell;
+      lastCell: Cell;
+      sourceBounds: LayerBounds;
+      sourceTiles: TilePlacement[];
+      moved: boolean;
+    }
+  | {
+      mode: 'resize-layer';
+      pointerId: number;
+      handle: LayerResizeHandle;
+      sourceBounds: LayerBounds;
+      sourceTiles: TilePlacement[];
     };

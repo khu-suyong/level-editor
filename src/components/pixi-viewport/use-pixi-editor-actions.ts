@@ -18,10 +18,31 @@ import { cellsEqual, coordinateKey, normalizeTiles, uniqueCells } from './util';
 
 const cloneTile = (tile: TilePlacement): TilePlacement => ({ ...tile });
 
+const tilesEqual = (
+  firstTiles: TilePlacement[],
+  secondTiles: TilePlacement[],
+) => {
+  if (firstTiles.length !== secondTiles.length) {
+    return false;
+  }
+
+  return firstTiles.every((firstTile, index) => {
+    const secondTile = secondTiles[index];
+
+    return (
+      !!secondTile &&
+      firstTile.x === secondTile.x &&
+      firstTile.y === secondTile.y &&
+      firstTile.tileId === secondTile.tileId
+    );
+  });
+};
+
 type UsePixiEditorActionsParams = {
   activeLayerId: Accessor<string>;
   clipboard: Accessor<TileClipboard | null>;
   selection: Accessor<TilePlacement[]>;
+  selectedTileId: Accessor<number>;
   snapshot: Accessor<LevelData>;
 };
 
@@ -29,6 +50,7 @@ export const usePixiEditorActions = ({
   activeLayerId,
   clipboard,
   selection,
+  selectedTileId,
   snapshot,
 }: UsePixiEditorActionsParams) => {
   const getActiveLayer = () =>
@@ -43,6 +65,11 @@ export const usePixiEditorActions = ({
 
   const getDefaultTileId = () =>
     snapshot().tileTable[0]?.tileId ?? DEFAULT_TILE_ID;
+
+  const getBrushTileId = () =>
+    snapshot().tileTable.some((tile) => tile.tileId === selectedTileId())
+      ? selectedTileId()
+      : getDefaultTileId();
 
   const dispatchAddOrReplace = (
     tiles: TilePlacement[],
@@ -106,7 +133,7 @@ export const usePixiEditorActions = ({
   const paintCells = (cells: Cell[]) => {
     const tiles = uniqueCells(cells).map((cell) => ({
       ...cell,
-      tileId: getDefaultTileId(),
+      tileId: getBrushTileId(),
     }));
 
     dispatchAddOrReplace(tiles);
@@ -186,6 +213,22 @@ export const usePixiEditorActions = ({
     setSelection(movedTiles);
   };
 
+  const moveActiveLayer = (sourceTiles: TilePlacement[], delta: Cell) => {
+    if (sourceTiles.length === 0 || (delta.x === 0 && delta.y === 0)) {
+      return;
+    }
+
+    moveTiles(
+      activeLayerId(),
+      normalizeTiles(sourceTiles).map((tile) => ({
+        start: { x: tile.x, y: tile.y },
+        end: { x: tile.x + delta.x, y: tile.y + delta.y },
+        tileId: tile.tileId,
+      })),
+    );
+    setSelection([]);
+  };
+
   const copySelection = () => {
     if (selection().length === 0) {
       return;
@@ -229,16 +272,35 @@ export const usePixiEditorActions = ({
     dispatchAddOrReplace(pastedTiles, pastedTiles);
   };
 
+  const resizeActiveLayer = (
+    sourceTiles: TilePlacement[],
+    targetTiles: TilePlacement[],
+  ) => {
+    const normalizedSourceTiles = normalizeTiles(sourceTiles.map(cloneTile));
+    const normalizedTargetTiles = normalizeTiles(targetTiles.map(cloneTile));
+
+    if (tilesEqual(normalizedSourceTiles, normalizedTargetTiles)) {
+      setSelection([]);
+      return;
+    }
+
+    replaceTiles(activeLayerId(), normalizedTargetTiles, normalizedSourceTiles);
+    setSelection([]);
+  };
+
   return {
     copySelection,
     deleteSelection,
     eraseCells,
     findTileAt,
     getActiveTiles,
+    getBrushTileId,
     getDefaultTileId,
+    moveActiveLayer,
     moveSelection,
     paintCells,
     pasteClipboard,
+    resizeActiveLayer,
     selectTilesInRect,
   };
 };

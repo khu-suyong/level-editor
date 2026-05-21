@@ -6,6 +6,8 @@ import { PixiViewport } from '../components/pixi-viewport';
 import type { LevelData } from '../models/level';
 import {
   editorStore,
+  setActiveLayerId,
+  setSelectedTileId,
   setSelectedTool,
   setSelection,
   setZoom,
@@ -26,7 +28,14 @@ import * as styles from './index.css';
 const defaultLevel: LevelData = {
   id: 'default-level',
   name: 'level name',
-  tileTable: [{ tileId: 0, sourceTileId: 'default' }],
+  tileTable: [
+    { tileId: 0, sourceTileId: 'blue' },
+    { tileId: 1, sourceTileId: 'green' },
+    { tileId: 2, sourceTileId: 'red' },
+    { tileId: 3, sourceTileId: 'amber' },
+    { tileId: 4, sourceTileId: 'violet' },
+    { tileId: 5, sourceTileId: 'cyan' },
+  ],
   layers: [
     {
       id: 'base',
@@ -72,6 +81,10 @@ export default function HomePage() {
     redoHistory();
     setSelection([]);
   };
+  const handleSelectLayer = (layerId: string) => {
+    setActiveLayerId(layerId);
+    setSelection([]);
+  };
 
   onMount(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -114,7 +127,13 @@ export default function HomePage() {
         <PixiViewport snapshot={level()} />
       </Box>
 
-      <SidePanel levelName={level().name} />
+      <SidePanel
+        activeLayerId={editor().activeLayerId}
+        level={level()}
+        selectedTileId={editor().selectedTileId}
+        onSelectLayer={handleSelectLayer}
+        onSelectTile={setSelectedTileId}
+      />
       <ToolPanel
         canUndo={undoAvailable()}
         canRedo={redoAvailable()}

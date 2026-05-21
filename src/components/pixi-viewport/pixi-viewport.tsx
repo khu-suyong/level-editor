@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/solid';
-import { Box, Popup, vars } from '@suis-ui/kit';
+import { Box, Item, Popup, vars } from '@suis-ui/kit';
 import {
   ClipboardPaste,
   Copy,
@@ -10,10 +10,14 @@ import {
 import { createSignal } from 'solid-js';
 import type { Cell, LevelData } from '@/models/level';
 import { editorStore, setZoom } from '@/stores/editor';
-import { Item } from '../ui/item';
-import { ItemGroup } from '../ui/item/item-group';
+import { Icon } from '../ui/icon';
 import * as styles from './pixi-viewport.css';
-import type { ContextMenuState, SelectionRect } from './types';
+import type {
+  ContextMenuState,
+  LayerMoveState,
+  LayerResizeState,
+  SelectionRect,
+} from './types';
 import { usePixiEditorActions } from './use-pixi-editor-actions';
 import { usePixiScene } from './use-pixi-scene';
 import { usePixiViewportInput } from './use-pixi-viewport-input';
@@ -39,11 +43,16 @@ export const PixiViewport = (props: PixiViewportProps) => {
   const [selectionRect, setSelectionRect] = createSignal<SelectionRect | null>(
     null,
   );
+  const [layerResizePreview, setLayerResizePreview] =
+    createSignal<LayerResizeState | null>(null);
+  const [layerMovePreview, setLayerMovePreview] =
+    createSignal<LayerMoveState | null>(null);
   const [isPanning, setIsPanning] = createSignal(false);
   const [isMovingSelection, setIsMovingSelection] = createSignal(false);
 
   const activeLayerId = () => editor().activeLayerId;
   const clipboard = () => editor().clipboard;
+  const selectedTileId = () => editor().selectedTileId;
   const selectedTool = () => editor().selectedTool;
   const selection = () => editor().selection;
   const snapshot = () => props.snapshot;
@@ -73,17 +82,20 @@ export const PixiViewport = (props: PixiViewportProps) => {
     activeLayerId,
     clipboard,
     selection,
+    selectedTileId,
     snapshot,
   });
   const sceneApi = usePixiScene({
     activeLayerId,
-    brushTileId: actions.getDefaultTileId,
+    brushTileId: actions.getBrushTileId,
     clipboard,
     contextMenu,
     dragDelta,
     erasePreviewCells,
     getHost,
     hoverCell,
+    layerMovePreview,
+    layerResizePreview,
     paintPreviewCells,
     selectedTool,
     selection,
@@ -107,6 +119,8 @@ export const PixiViewport = (props: PixiViewportProps) => {
     setHoverCell,
     setIsMovingSelection,
     setIsPanning,
+    setLayerMovePreview,
+    setLayerResizePreview,
     setPaintPreviewCells,
     setSelectionRect,
     setZoom,
@@ -138,76 +152,104 @@ export const PixiViewport = (props: PixiViewportProps) => {
             bw={'md'}
             bc={'surface.high'}
             r={'md'}
+            class={styles.contextMenuPanel}
             style={{ 'box-shadow': vars.shadow.lg }}
           >
-            <ItemGroup>
-              <Item
-                disabled
-                as={'li'}
-                role={'presentation'}
-                title={'선택된 셀'}
-              >
-                {`${contextMenu().cell.x}, ${contextMenu().cell.y}`}
-              </Item>
-            </ItemGroup>
-            <ItemGroup>
-              <Box as={'li'} role={'none'}>
-                <Item
-                  icon={Copy}
-                  title={'복사'}
-                  role={'menuitem'}
-                  disabled={selection().length === 0}
-                  onClick={input.handleMenuCopy}
-                >
-                  {'⌘C'}
-                </Item>
+            <Item
+              as={'li'}
+              role={'presentation'}
+              class={styles.contextMenuGroup}
+              title={'선택된 셀'}
+              description={`${contextMenu().cell.x}, ${contextMenu().cell.y}`}
+              size={'sm'}
+            />
+            <Box as={'li'} class={styles.contextMenuGroup} role={'none'}>
+              <Box as={'ul'} role={'none'} class={styles.contextMenuList}>
+                <Box as={'li'} role={'none'}>
+                  <Item
+                    as={'button'}
+                    type={'button'}
+                    media={<Icon name={Copy} />}
+                    title={'복사'}
+                    action={'⌘C'}
+                    size={'sm'}
+                    w={'100%'}
+                    bg={'surface.main'}
+                    c={'text.main'}
+                    role={'menuitem'}
+                    disabled={selection().length === 0}
+                    onClick={input.handleMenuCopy}
+                  />
+                </Box>
+                <Box as={'li'} role={'none'}>
+                  <Item
+                    as={'button'}
+                    type={'button'}
+                    media={<Icon name={ClipboardPaste} />}
+                    title={'붙여넣기'}
+                    action={'⌘V'}
+                    size={'sm'}
+                    w={'100%'}
+                    bg={'surface.main'}
+                    c={'text.main'}
+                    role={'menuitem'}
+                    disabled={!clipboard()}
+                    onClick={input.handleMenuPaste}
+                  />
+                </Box>
+                <Box as={'li'} role={'none'}>
+                  <Item
+                    as={'button'}
+                    type={'button'}
+                    media={<Icon name={Trash2} />}
+                    title={'삭제'}
+                    action={'⌫'}
+                    size={'sm'}
+                    w={'100%'}
+                    bg={'surface.main'}
+                    c={'text.main'}
+                    role={'menuitem'}
+                    disabled={isDeleteDisabled()}
+                    onClick={input.handleMenuDelete}
+                  />
+                </Box>
               </Box>
-              <Box as={'li'} role={'none'}>
-                <Item
-                  icon={ClipboardPaste}
-                  title={'붙여넣기'}
-                  role={'menuitem'}
-                  disabled={!clipboard()}
-                  onClick={input.handleMenuPaste}
-                >
-                  {'⌘V'}
-                </Item>
+            </Box>
+            <Box as={'li'} class={styles.contextMenuGroup} role={'none'}>
+              <Box as={'ul'} role={'none'} class={styles.contextMenuList}>
+                <Box as={'li'} role={'none'}>
+                  <Item
+                    as={'button'}
+                    type={'button'}
+                    media={<Icon name={SquareDashedMousePointer} />}
+                    title={'선택 해제'}
+                    action={'⌘D'}
+                    size={'sm'}
+                    w={'100%'}
+                    bg={'surface.main'}
+                    c={'text.main'}
+                    role={'menuitem'}
+                    disabled={selection().length === 0}
+                    onClick={input.handleClearSelection}
+                  />
+                </Box>
+                <Box as={'li'} role={'none'}>
+                  <Item
+                    as={'button'}
+                    type={'button'}
+                    media={<Icon name={RefreshCcw} />}
+                    title={'뷰 초기화'}
+                    action={'⌘R'}
+                    size={'sm'}
+                    w={'100%'}
+                    bg={'surface.main'}
+                    c={'text.main'}
+                    role={'menuitem'}
+                    onClick={input.handleResetView}
+                  />
+                </Box>
               </Box>
-              <Box as={'li'} role={'none'}>
-                <Item
-                  icon={Trash2}
-                  title={'삭제'}
-                  role={'menuitem'}
-                  disabled={isDeleteDisabled()}
-                  onClick={input.handleMenuDelete}
-                >
-                  {'⌫'}
-                </Item>
-              </Box>
-            </ItemGroup>
-            <ItemGroup>
-              <Box as={'li'} role={'none'}>
-                <Item
-                  icon={SquareDashedMousePointer}
-                  title={'선택 해제'}
-                  role={'menuitem'}
-                  disabled={selection().length === 0}
-                  onClick={input.handleClearSelection}
-                >
-                  {'⌘D'}
-                </Item>
-              </Box>
-              <Box as={'li'} role={'none'}>
-                <Item
-                  icon={RefreshCcw}
-                  title={'뷰 초기화'}
-                  role={'menuitem'}
-                  onClick={input.handleResetView}
-                >
-                  {'⌘R'}
-                </Item>
-              </Box>
-            </ItemGroup>
+            </Box>
           </Box>
         }
       >
