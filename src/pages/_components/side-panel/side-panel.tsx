@@ -1,12 +1,23 @@
-import { Box, Button } from '@suis-ui/kit';
+import { Box, Button, Item } from '@suis-ui/kit';
+import { ChevronDown, ChevronUp, Layers, Menu, Square } from 'lucide-solid';
+import { createMemo, createSignal, For, Show } from 'solid-js';
 
+import { Icon } from '@/components/ui/icon';
+import type { LevelData, LevelLayer } from '@/models/level';
 import * as styles from './side-panel.css';
 
 type SidePanelProps = {
-  levelName: string;
+  activeLayerId: string;
+  level: LevelData;
+  onSelectLayer: (layerId: string) => void;
 };
 
-export function SidePanel(props: SidePanelProps) {
+const sortLayers = (layers: LevelLayer[]) =>
+  [...layers].sort((first, second) => first.order - second.order);
+
+export const SidePanel = (props: SidePanelProps) => {
+  const layers = createMemo(() => sortLayers(props.level.layers));
+
   return (
     <Box
       as={'aside'}
@@ -15,39 +26,93 @@ export function SidePanel(props: SidePanelProps) {
       gap={'md'}
       bg={'surface.high'}
       bc={'surface.higher'}
-      bw={'thin'}
-      aria-label={'Editor actions'}
+      bd={'thin'}
+      p={'xs'}
+      r={'lg'}
+      shadow={'xl'}
+      aria-label={'Level structure'}
     >
-      <div class={styles.brandRow}>
-        <Box class={styles.appMark} bg={'primary.main'} c={'primary.contrast'}>
-          {'LE'}
+      <Box direction={'row'} align={'center'} gap={'xs'}>
+        <Button variant={'ghost'} type={'icon'} size={'sm'} r={'md'}>
+          <Icon name={Menu} />
+        </Button>
+        <Box text={'body'}>{props.level.name}</Box>
+      </Box>
+      <Box gap={'xs'}>
+        <Box as={'h2'} text={'caption'} c={'text.caption'} px={'xs'}>
+          {'Layers'}
         </Box>
-        <Box minW={'0'}>
-          <Box as={'h1'} class={styles.title} text={'body'} c={'text.main'}>
-            {props.levelName}
-          </Box>
-          <Box
-            as={'p'}
-            class={styles.subtitle}
-            text={'caption'}
-            c={'text.caption'}
-          >
-            {'2D level editor'}
-          </Box>
+        <Box as={'ul'} aria-label={'Layer tree'}>
+          <For each={layers()}>
+            {(layer) => (
+              <LayerItem layer={layer} activeLayerId={props.activeLayerId} />
+            )}
+          </For>
         </Box>
-      </div>
-
-      <div class={styles.actionRow}>
-        <Button variant={'default'} size={'sm'}>
-          {'New'}
-        </Button>
-        <Button variant={'default'} size={'sm'}>
-          {'Save'}
-        </Button>
-        <Button variant={'primary'} size={'sm'}>
-          {'Playtest'}
-        </Button>
-      </div>
+      </Box>
     </Box>
   );
-}
+};
+
+type LayerItemProps = {
+  layer: LevelLayer;
+  activeLayerId?: string;
+};
+const LayerItem = (props: LayerItemProps) => {
+  const [expand, setExpand] = createSignal(false);
+
+  return (
+    <Box as={'li'}>
+      <Item
+        as={Button}
+        variant={'ghost'}
+        media={<Icon name={Layers} />}
+        title={
+          <Box
+            direction={'row'}
+            justify={'flex-start'}
+            align={'center'}
+            gap={'xs'}
+          >
+            <Box as={'span'}>{props.layer.name}</Box>
+            <Box as={'span'} text={'caption'} c={'text.caption'}>
+              {props.layer.id}
+            </Box>
+          </Box>
+        }
+        action={<Icon name={expand() ? ChevronUp : ChevronDown} />}
+        active={props.activeLayerId === props.layer.id}
+        onClick={() => setExpand((prev) => !prev)}
+      />
+      <Show when={expand()}>
+        <Box as={'ul'} pl={'md'}>
+          <For each={props.layer.tiles}>
+            {(tile) => (
+              <Item
+                as={'li'}
+                class={styles.tileItem}
+                media={<Icon name={Square} />}
+                title={
+                  <Box
+                    direction={'row'}
+                    justify={'flex-start'}
+                    align={'center'}
+                    gap={'xs'}
+                  >
+                    <Box as={'span'}>{`Tile ${tile.tileId}`}</Box>
+                    <Box
+                      as={'span'}
+                      text={'caption'}
+                      c={'text.caption'}
+                    >{`${tile.x}, ${tile.y}`}</Box>
+                  </Box>
+                }
+                justify={'flex-start'}
+              />
+            )}
+          </For>
+        </Box>
+      </Show>
+    </Box>
+  );
+};

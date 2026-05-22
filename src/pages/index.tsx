@@ -6,6 +6,7 @@ import { PixiViewport } from '../components/pixi-viewport';
 import type { LevelData } from '../models/level';
 import {
   editorStore,
+  setActiveLayerId,
   setSelectedTool,
   setSelection,
   setZoom,
@@ -72,6 +73,10 @@ export default function HomePage() {
     redoHistory();
     setSelection([]);
   };
+  const handleSelectLayer = (layerId: string) => {
+    setActiveLayerId(layerId);
+    setSelection([]);
+  };
 
   onMount(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -114,7 +119,11 @@ export default function HomePage() {
         <PixiViewport snapshot={level()} />
       </Box>
 
-      <SidePanel levelName={level().name} />
+      <SidePanel
+        activeLayerId={editor().activeLayerId}
+        level={level()}
+        onSelectLayer={handleSelectLayer}
+      />
       <ToolPanel
         canUndo={undoAvailable()}
         canRedo={redoAvailable()}
@@ -123,12 +132,7 @@ export default function HomePage() {
         selectedTool={editor().selectedTool}
         onSelectTool={setSelectedTool}
       />
-      <PropertyPanel
-        canvasReady={editor().canvasReady}
-        selectedTool={editor().selectedTool}
-        zoom={editor().zoom}
-        onZoomChange={setZoom}
-      />
+      <PropertyPanel zoom={editor().zoom} onZoomChange={setZoom} />
     </Box>
   );
 }

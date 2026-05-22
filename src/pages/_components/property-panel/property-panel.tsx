@@ -1,121 +1,76 @@
-import { Box } from '@suis-ui/kit';
+import { Box, Button, Item } from '@suis-ui/kit';
+import {
+  Grid3X3,
+  Minus,
+  Plus,
+  RotateCcw,
+  SlidersHorizontal,
+} from 'lucide-solid';
 
-import type { EditorTool } from '@/stores/editor';
+import { Icon } from '@/components/ui/icon';
+import { Slider } from '@/components/ui/slider';
 import * as styles from './property-panel.css';
 
 type PropertyPanelProps = {
-  canvasReady: boolean;
-  selectedTool: EditorTool;
   zoom: number;
   onZoomChange: (zoom: number) => void;
 };
 
+const ZOOM_MIN = 25;
+const ZOOM_MAX = 200;
+const ZOOM_STEP = 5;
+const ZOOM_DEFAULT = 100;
+
+const clampZoom = (zoom: number) =>
+  Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom));
+
 export function PropertyPanel(props: PropertyPanelProps) {
+  const handleZoomStep = (delta: number) => {
+    props.onZoomChange(clampZoom(props.zoom + delta));
+  };
+
   return (
     <Box
       as={'aside'}
       class={styles.panel}
       direction={'column'}
-      gap={'md'}
+      gap={'sm'}
       bg={'surface.high'}
       bc={'surface.higher'}
-      bw={'thin'}
+      bd={'thin'}
+      p={'sm'}
+      r={'lg'}
+      shadow={'xl'}
       aria-label={'Properties'}
     >
-      <div class={styles.panelHeader}>
-        <Box
-          as={'h2'}
-          class={styles.panelTitle}
-          text={'caption'}
-          c={'text.caption'}
-        >
-          {'Properties'}
-        </Box>
-        <Box text={'caption'} c={'text.caption'}>
-          {props.canvasReady ? 'Ready' : 'Loading'}
-        </Box>
-      </div>
+      <Item
+        media={<Icon name={SlidersHorizontal} />}
+        size={'sm'}
+        title={'Properties'}
+      />
 
-      <Box as={'dl'} class={styles.propertyList}>
-        <Box class={styles.propertyRow} bg={'surface.higher'} r={'sm'}>
-          <Box
-            as={'dt'}
-            class={styles.propertyTerm}
-            text={'caption'}
-            c={'text.caption'}
-          >
-            {'Tool'}
+      <Item
+        media={<Icon name={Grid3X3} />}
+        size={'sm'}
+        title={'Grid Size'}
+        action={
+          <Box text={'caption'}>
+            {'32px'}
           </Box>
-          <Box
-            as={'dd'}
-            class={styles.propertyDetail}
-            text={'caption'}
-            c={'text.main'}
-          >
-            {props.selectedTool}
-          </Box>
-        </Box>
-        <Box class={styles.propertyRow} bg={'surface.higher'} r={'sm'}>
-          <Box
-            as={'dt'}
-            class={styles.propertyTerm}
-            text={'caption'}
-            c={'text.caption'}
-          >
-            {'Grid'}
-          </Box>
-          <Box
-            as={'dd'}
-            class={styles.propertyDetail}
-            text={'caption'}
-            c={'text.main'}
-          >
-            {'32 px'}
-          </Box>
-        </Box>
-        <Box class={styles.propertyRow} bg={'surface.higher'} r={'sm'}>
-          <Box
-            as={'dt'}
-            class={styles.propertyTerm}
-            text={'caption'}
-            c={'text.caption'}
-          >
-            {'Renderer'}
-          </Box>
-          <Box
-            as={'dd'}
-            class={styles.propertyDetail}
-            text={'caption'}
-            c={'text.main'}
-          >
-            {props.canvasReady ? 'Ready' : 'Preparing'}
-          </Box>
-        </Box>
-      </Box>
-
-      <Box as={'label'} class={styles.zoomControl} c={'text.caption'}>
-        <Box as={'span'} text={'caption'}>
-          {'Zoom'}
-        </Box>
-        <input
-          class={styles.zoomRange}
-          type={'range'}
-          min={'25'}
-          max={'200'}
-          step={'5'}
+        }
+      />
+      <Box>
+        <Slider
+          aria-label={'Zoom'}
+          min={ZOOM_MIN}
+          max={ZOOM_MAX}
+          step={ZOOM_STEP}
           value={props.zoom}
-          onInput={(event) =>
-            props.onZoomChange(event.currentTarget.valueAsNumber)
+          onChange={(value: number) =>
+            props.onZoomChange(clampZoom(value))
           }
         />
-        <Box
-          as={'output'}
-          class={styles.zoomOutput}
-          text={'caption'}
-          c={'text.main'}
-        >
-          {`${props.zoom}%`}
-        </Box>
+        {`${props.zoom}%`}
       </Box>
     </Box>
   );

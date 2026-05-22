@@ -1,4 +1,4 @@
-import { Box, Button } from '@suis-ui/kit';
+import { Box, Button, Tooltip } from '@suis-ui/kit';
 import {
   Eraser,
   Hand,
@@ -33,54 +33,90 @@ type ToolPanelProps = {
   onSelectTool: (selectedTool: EditorTool) => void;
 };
 
+type ToolbarIconButtonProps = {
+  active?: boolean;
+  disabled?: boolean;
+  icon: IconType;
+  label: string;
+  onClick: () => void;
+};
+
+const ToolbarIconButton = (props: ToolbarIconButtonProps) => (
+  <Tooltip
+    content={<Box text={'caption'}>{props.label}</Box>}
+    placement={'top'}
+    withArrow
+    offset={12}
+  >
+    <Box as={'span'} direction={'row'}>
+      <Button
+        variant={'ghost'}
+        size={'md'}
+        p={'sm'}
+        type={'icon'}
+        active={props.active}
+        disabled={props.disabled}
+        aria-label={props.label}
+        onClick={props.onClick}
+      >
+        <Icon name={props.icon} />
+      </Button>
+    </Box>
+  </Tooltip>
+);
+
 export function ToolPanel(props: ToolPanelProps) {
   return (
     <Box as={'aside'} class={styles.containerStyle}>
-      <Box class={styles.groupStyle} aria-label={'Editor toolbar'}>
+      <Box
+        class={styles.groupStyle}
+        direction={'row'}
+        p={'xs'}
+        gap={'sm'}
+        r={'md'}
+        bg={'surface.high'}
+        bc={'surface.higher'}
+        bd={'thin'}
+        shadow={'md'}
+        aria-label={'Editor toolbar'}
+      >
         <Box direction={'row'} aria-label={'History actions'}>
-          <Button
-            variant={'ghost'}
-            size={'md'}
-            p={'sm'}
-            type={'icon'}
+          <ToolbarIconButton
+            icon={Undo2}
+            label={'Undo'}
             disabled={!props.canUndo}
-            title={'Undo'}
-            aria-label={'Undo'}
             onClick={props.onUndo}
-          >
-            <Icon name={Undo2} size={'1.6rem'} />
-          </Button>
-          <Button
-            variant={'ghost'}
-            size={'md'}
-            p={'sm'}
-            type={'icon'}
+          />
+          <ToolbarIconButton
+            icon={Redo2}
+            label={'Redo'}
             disabled={!props.canRedo}
-            title={'Redo'}
-            aria-label={'Redo'}
             onClick={props.onRedo}
-          >
-            <Icon name={Redo2} size={'1.6rem'} />
-          </Button>
+          />
         </Box>
       </Box>
 
-      <Box class={styles.groupStyle} aria-label={'Editor toolbar'}>
+      <Box
+        class={styles.groupStyle}
+        direction={'row'}
+        p={'xs'}
+        gap={'sm'}
+        r={'md'}
+        bg={'surface.high'}
+        bc={'surface.higher'}
+        bd={'thin'}
+        shadow={'md'}
+        aria-label={'Editor toolbar'}
+      >
         <Box direction={'row'} aria-label={'Editor modes'}>
           <For each={tools}>
             {(tool) => (
-              <Button
-                variant={'ghost'}
-                size={'md'}
-                p={'sm'}
-                type={'icon'}
+              <ToolbarIconButton
+                icon={tool.icon}
+                label={tool.label}
                 active={props.selectedTool === tool.id}
-                title={tool.label}
-                aria-label={tool.label}
                 onClick={() => props.onSelectTool(tool.id)}
-              >
-                <Icon name={tool.icon} size={'1.6rem'} />
-              </Button>
+              />
             )}
           </For>
         </Box>

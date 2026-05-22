@@ -7,10 +7,9 @@ export const panel = style({
   top: vars.size.space.lg,
   left: vars.size.space.lg,
   width: '26rem',
-  padding: vars.size.space.md,
-  borderRadius: vars.size.space.sm,
-  boxShadow: vars.shadow.xl,
+  maxHeight: `calc(100vh - (${vars.size.space.lg} * 2))`,
   backdropFilter: 'blur(10px)',
+  overflow: 'hidden',
 });
 
 export const appMark = style({
@@ -25,21 +24,6 @@ export const appMark = style({
   lineHeight: vars.font.caption.lineHeight,
 });
 
-export const brandRow = style({
-  display: 'flex',
-  alignItems: 'center',
-  gap: vars.size.space.md,
-  minWidth: 0,
-});
-
-export const actionRow = style({
-  display: 'flex',
-  alignItems: 'center',
-  flexWrap: 'wrap',
-  gap: vars.size.space.sm,
-  minWidth: 0,
-});
-
 export const title = style({
   margin: 0,
   overflow: 'hidden',
@@ -51,5 +35,66 @@ export const title = style({
 
 export const subtitle = style({
   margin: `${vars.size.space.xxs} 0 0`,
+  lineHeight: vars.font.caption.lineHeight,
+});
+
+export const treeSection = style({
+  flex: '1 1 auto',
+  minHeight: 0,
+  overflow: 'hidden',
+});
+
+export const sectionTitle = style({
+  margin: 0,
+  lineHeight: vars.font.caption.lineHeight,
+});
+
+export const treeScroll = style({
+  flex: '1 1 auto',
+  minHeight: 0,
+  overflowY: 'auto',
+  paddingRight: vars.size.space.xxs,
+});
+
+export const layerNode = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: vars.size.space.xs,
+});
+
+export const layerItem = style({
+  width: '100%',
+  border: 0,
+  cursor: 'pointer',
+  color: vars.color.text.main,
+  background: 'transparent',
+  textAlign: 'left',
+});
+
+export const activeLayerItem = style({
+  background: vars.color.primary.container,
+  color: vars.color.primary.containerContrast,
+});
+
+export const tileList = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: vars.size.space.xxs,
+  margin: 0,
+  padding: `0 0 ${vars.size.space.sm} ${vars.size.space.lg}`,
+  listStyle: 'none',
+});
+
+export const tileNode = style({
+  display: 'block',
+});
+
+export const tileItem = style({
+  color: vars.color.text.caption,
+  pointerEvents: 'none',
+});
+
+export const emptyNode = style({
+  padding: `${vars.size.space.xs} ${vars.size.space.sm}`,
   lineHeight: vars.font.caption.lineHeight,
 });

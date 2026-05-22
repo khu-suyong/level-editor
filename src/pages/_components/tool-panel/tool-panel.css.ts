@@ -17,16 +17,5 @@ export const containerStyle = style({
 });
 
 export const groupStyle = style({
-  flexDirection: 'row',
-
-  background: `oklch(from ${vars.color.surface.high} l c h / 0.8)`,
   backdropFilter: 'blur(8px)',
-  borderColor: vars.color.surface.higher,
-  borderStyle: 'solid',
-  borderWidth: vars.size.line.thin,
-  borderRadius: vars.size.space.md,
-  boxShadow: vars.shadow.md,
-
-  padding: vars.size.space.xs,
-  gap: vars.size.space.sm,
 });

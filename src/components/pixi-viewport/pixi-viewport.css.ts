@@ -40,33 +40,43 @@ export const contextMenu = style({
   pointerEvents: 'none',
 });
 
-export const contextMenuHeader = style({
-  padding: '0.35rem 0.55rem',
-  color: 'rgb(148 163 184)',
-  fontSize: '0.75rem',
-  lineHeight: 1.3,
+export const contextMenuContent = style({
+  overflow: 'hidden',
 });
 
-export const contextMenuButton = style({
+export const contextMenuGroup = style({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'stretch',
+  margin: 0,
+  padding: vars.size.space.xs,
+  listStyle: 'none',
+
+  selectors: {
+    '& + &': {
+      borderTopStyle: 'solid',
+      borderTopWidth: vars.size.line.md,
+      borderTopColor: vars.color.surface.higher,
+    },
+  },
+});
+
+export const contextMenuHeader = style({
+  color: vars.color.text.caption,
+});
+
+export const contextMenuItem = style({
   width: '100%',
-  minHeight: '2rem',
-  padding: '0 0.55rem',
   border: 0,
-  borderRadius: '0.35rem',
-  background: 'transparent',
-  color: 'inherit',
   cursor: 'pointer',
-  font: 'inherit',
-  fontSize: '0.8125rem',
-  lineHeight: 1,
+  color: vars.color.text.main,
+  background: 'transparent',
   textAlign: 'left',
 
-  ':hover': {
-    background: 'rgb(51 65 85 / 0.72)',
-  },
-
-  ':disabled': {
-    color: 'rgb(100 116 139)',
-    cursor: 'not-allowed',
+  selectors: {
+    '&:disabled': {
+      cursor: 'default',
+      color: vars.color.text.disabled,
+    },
   },
 });
