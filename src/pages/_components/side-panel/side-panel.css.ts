@@ -9,7 +9,7 @@ export const panel = style({
   width: '26rem',
   maxHeight: `calc(100vh - (${vars.size.space.lg} * 2))`,
   backdropFilter: 'blur(10px)',
-  overflow: 'hidden',
+  overflow: 'auto',
 });
 
 export const appMark = style({

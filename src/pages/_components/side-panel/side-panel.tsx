@@ -1,5 +1,5 @@
 import { Box, Button, CheckBox, Item } from '@suis-ui/kit';
-import { ChevronDown, ChevronUp, Layers, Menu, Square } from 'lucide-solid';
+import { ChevronDown, ChevronUp, Menu, Square } from 'lucide-solid';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 
 import { Icon } from '@/components/ui/icon';
@@ -34,7 +34,7 @@ export const SidePanel = (props: SidePanelProps) => {
       shadow={'xl'}
       aria-label={'Level structure'}
     >
-      <Box direction={'row'} align={'center'} gap={'xs'}>
+      <Box pos={'sticky'} direction={'row'} align={'center'} gap={'xs'} top={'0'}>
         <Button variant={'ghost'} type={'icon'} size={'sm'} r={'md'}>
           <Icon name={Menu} />
         </Button>
@@ -85,7 +85,9 @@ const LayerItem = (props: LayerItemProps) => {
           media={
             <CheckBox
               checked={props.selectedLayerId === props.layer.id}
-              onChecked={(checked) => props.onSelectLayerRect(props.layer.id, checked)}
+              onChecked={(checked) =>
+                props.onSelectLayerRect(props.layer.id, checked)
+              }
             />
           }
           title={
@@ -104,7 +106,6 @@ const LayerItem = (props: LayerItemProps) => {
           action={<Icon name={expand() ? ChevronUp : ChevronDown} />}
           // active={props.activeLayerId === props.layer.id}
           onClick={handleClick}
-          style={{ flex: '1 1 auto' }}
         />
       </Box>
       <Show when={expand()}>

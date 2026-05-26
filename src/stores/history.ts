@@ -1,11 +1,19 @@
 import { computed, map } from 'nanostores';
 
-import type { Cell, LevelData, TilePlacement } from '@/models/level';
+import type {
+  Cell,
+  LayerBounds,
+  LevelData,
+  LevelLayer,
+  TileMapping,
+  TilePlacement,
+} from '@/models/level';
 
 export type TileMove = {
   start: Cell;
   end: Cell;
   tileId: number;
+  source?: TilePlacement['source'];
 };
 
 export type AddHistoryAction = {
@@ -27,13 +35,26 @@ export type ReplaceHistoryAction = {
   delete: TilePlacement[];
 };
 
+export type AddLayerHistoryAction = {
+  type: 'add-layer';
+  layer: LevelLayer;
+  tileMappings: TileMapping[];
+};
+
+export type LayerBoundsMove = {
+  start: LayerBounds;
+  end: LayerBounds;
+};
+
 export type MoveHistoryAction = {
   type: 'move';
   layerId: string;
   moves: TileMove[];
+  bounds?: LayerBoundsMove;
 };
 
 export type EditorHistoryAction =
+  | AddLayerHistoryAction
   | AddHistoryAction
   | DeleteHistoryAction
   | MoveHistoryAction
@@ -47,17 +68,46 @@ export type EditorHistoryState = {
 
 const coordinateKey = (cell: Cell) => `${cell.x},${cell.y}`;
 
-const cloneTile = (tile: TilePlacement): TilePlacement => ({ ...tile });
+const cloneLayerBounds = (bounds: LayerBounds): LayerBounds => ({ ...bounds });
+
+const cloneTile = (tile: TilePlacement): TilePlacement => ({
+  ...tile,
+  ...(tile.source ? { source: { ...tile.source } } : {}),
+});
+
+const cloneTileMapping = (tileMapping: TileMapping): TileMapping => ({
+  ...tileMapping,
+});
+
+const cloneLayer = (layer: LevelLayer): LevelLayer => ({
+  ...layer,
+  ...(layer.bounds ? { bounds: cloneLayerBounds(layer.bounds) } : {}),
+  tiles: layer.tiles.map(cloneTile),
+});
 
 const cloneMove = (move: TileMove): TileMove => ({
   start: { ...move.start },
   end: { ...move.end },
   tileId: move.tileId,
+  ...(move.source ? { source: { ...move.source } } : {}),
+});
+
+const cloneLayerBoundsMove = (move: LayerBoundsMove): LayerBoundsMove => ({
+  start: cloneLayerBounds(move.start),
+  end: cloneLayerBounds(move.end),
 });
 
 const cloneHistoryAction = (
   action: EditorHistoryAction,
 ): EditorHistoryAction => {
+  if (action.type === 'add-layer') {
+    return {
+      ...action,
+      layer: cloneLayer(action.layer),
+      tileMappings: action.tileMappings.map(cloneTileMapping),
+    };
+  }
+
   if (action.type === 'add' || action.type === 'delete') {
     return {
       ...action,
@@ -76,16 +126,14 @@ const cloneHistoryAction = (
   return {
     ...action,
     moves: action.moves.map(cloneMove),
+    ...(action.bounds ? { bounds: cloneLayerBoundsMove(action.bounds) } : {}),
   };
 };
 
 const cloneSnapshot = (snapshot: LevelData): LevelData => ({
   ...snapshot,
-  tileTable: snapshot.tileTable.map((tile) => ({ ...tile })),
-  layers: snapshot.layers.map((layer) => ({
-    ...layer,
-    tiles: layer.tiles.map(cloneTile),
-  })),
+  tileTable: snapshot.tileTable.map(cloneTileMapping),
+  layers: snapshot.layers.map(cloneLayer),
 });
 
 const normalizeTiles = (tiles: TilePlacement[]) => {
@@ -104,18 +152,29 @@ const normalizeTiles = (tiles: TilePlacement[]) => {
   });
 };
 
+const updateLayer = (
+  snapshot: LevelData,
+  layerId: string,
+  update: (layer: LevelLayer) => LevelLayer,
+) => ({
+  ...snapshot,
+  tileTable: snapshot.tileTable.map(cloneTileMapping),
+  layers: snapshot.layers.map((layer) =>
+    layer.id === layerId
+      ? cloneLayer(update(cloneLayer(layer)))
+      : cloneLayer(layer),
+  ),
+});
+
 const updateLayerTiles = (
   snapshot: LevelData,
   layerId: string,
   update: (tiles: TilePlacement[]) => TilePlacement[],
-) => ({
-  ...snapshot,
-  layers: snapshot.layers.map((layer) =>
-    layer.id === layerId
-      ? { ...layer, tiles: normalizeTiles(update(layer.tiles)) }
-      : { ...layer, tiles: layer.tiles.map(cloneTile) },
-  ),
-});
+) =>
+  updateLayer(snapshot, layerId, (layer) => ({
+    ...layer,
+    tiles: normalizeTiles(update(layer.tiles)),
+  }));
 
 const removeTiles = (tiles: TilePlacement[], targets: ReadonlyArray<Cell>) => {
   const targetKeys = new Set(targets.map(coordinateKey));
@@ -127,6 +186,17 @@ export const applyHistoryAction = (
   snapshot: LevelData,
   action: EditorHistoryAction,
 ) => {
+  if (action.type === 'add-layer') {
+    return {
+      ...snapshot,
+      tileTable: [
+        ...snapshot.tileTable.map(cloneTileMapping),
+        ...action.tileMappings.map(cloneTileMapping),
+      ],
+      layers: [...snapshot.layers.map(cloneLayer), cloneLayer(action.layer)],
+    };
+  }
+
   if (action.type === 'add') {
     return updateLayerTiles(snapshot, action.layerId, (tiles) => [
       ...removeTiles(tiles, action.tiles),
@@ -147,22 +217,43 @@ export const applyHistoryAction = (
     ]);
   }
 
-  return updateLayerTiles(snapshot, action.layerId, (tiles) => [
-    ...removeTiles(tiles, [
-      ...action.moves.map((move) => move.start),
-      ...action.moves.map((move) => move.end),
+  return updateLayer(snapshot, action.layerId, (layer) => ({
+    ...layer,
+    ...(action.bounds ? { bounds: cloneLayerBounds(action.bounds.end) } : {}),
+    tiles: normalizeTiles([
+      ...removeTiles(layer.tiles, [
+        ...action.moves.map((move) => move.start),
+        ...action.moves.map((move) => move.end),
+      ]),
+      ...action.moves.map((move) => ({
+        ...move.end,
+        tileId: move.tileId,
+        ...(move.source ? { source: { ...move.source } } : {}),
+      })),
     ]),
-    ...action.moves.map((move) => ({
-      ...move.end,
-      tileId: move.tileId,
-    })),
-  ]);
+  }));
 };
 
 export const revertHistoryAction = (
   snapshot: LevelData,
   action: EditorHistoryAction,
 ) => {
+  if (action.type === 'add-layer') {
+    const tileMappingIds = new Set(
+      action.tileMappings.map((tileMapping) => tileMapping.tileId),
+    );
+
+    return {
+      ...snapshot,
+      tileTable: snapshot.tileTable
+        .filter((tileMapping) => !tileMappingIds.has(tileMapping.tileId))
+        .map(cloneTileMapping),
+      layers: snapshot.layers
+        .filter((layer) => layer.id !== action.layer.id)
+        .map(cloneLayer),
+    };
+  }
+
   if (action.type === 'add') {
     return updateLayerTiles(snapshot, action.layerId, (tiles) =>
       removeTiles(tiles, action.tiles),
@@ -183,16 +274,21 @@ export const revertHistoryAction = (
     ]);
   }
 
-  return updateLayerTiles(snapshot, action.layerId, (tiles) => [
-    ...removeTiles(tiles, [
-      ...action.moves.map((move) => move.end),
-      ...action.moves.map((move) => move.start),
+  return updateLayer(snapshot, action.layerId, (layer) => ({
+    ...layer,
+    ...(action.bounds ? { bounds: cloneLayerBounds(action.bounds.start) } : {}),
+    tiles: normalizeTiles([
+      ...removeTiles(layer.tiles, [
+        ...action.moves.map((move) => move.end),
+        ...action.moves.map((move) => move.start),
+      ]),
+      ...action.moves.map((move) => ({
+        ...move.start,
+        tileId: move.tileId,
+        ...(move.source ? { source: { ...move.source } } : {}),
+      })),
     ]),
-    ...action.moves.map((move) => ({
-      ...move.start,
-      tileId: move.tileId,
-    })),
-  ]);
+  }));
 };
 
 export const historyStore = map<EditorHistoryState>({
@@ -292,12 +388,23 @@ export const deleteTiles = (layerId: string, tiles: TilePlacement[]) => {
   recordHistoryAction({ type: 'delete', layerId, tiles });
 };
 
-export const moveTiles = (layerId: string, moves: TileMove[]) => {
-  if (moves.length === 0) {
+export const addLayer = (
+  layer: LevelLayer,
+  tileMappings: TileMapping[] = [],
+) => {
+  recordHistoryAction({ type: 'add-layer', layer, tileMappings });
+};
+
+export const moveTiles = (
+  layerId: string,
+  moves: TileMove[],
+  bounds?: LayerBoundsMove,
+) => {
+  if (moves.length === 0 && !bounds) {
     return;
   }
 
-  recordHistoryAction({ type: 'move', layerId, moves });
+  recordHistoryAction({ type: 'move', layerId, moves, bounds });
 };
 
 export const replaceTiles = (

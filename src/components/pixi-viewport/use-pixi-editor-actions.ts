@@ -17,7 +17,7 @@ import { DEFAULT_TILE_ID } from './constants';
 import {
   cellsEqual,
   coordinateKey,
-  getTileBounds,
+  getLayerTileBounds,
   normalizeTiles,
   uniqueCells,
 } from './util';
@@ -52,8 +52,11 @@ export const usePixiEditorActions = ({
       ? (snapshot().layers.find((layer) => layer.id === layerId) ?? null)
       : null;
 
-  const getLayerBounds = (layerId: string | null) =>
-    getTileBounds(getLayer(layerId)?.tiles ?? []);
+  const getLayerBounds = (layerId: string | null) => {
+    const layer = getLayer(layerId);
+
+    return layer ? getLayerTileBounds(layer) : null;
+  };
 
   const getDefaultTileId = () =>
     snapshot().tileTable[0]?.tileId ?? DEFAULT_TILE_ID;
@@ -193,6 +196,7 @@ export const usePixiEditorActions = ({
           start: { x: tile.x, y: tile.y },
           end: { x: tile.x + delta.x, y: tile.y + delta.y },
           tileId: tile.tileId,
+          ...(tile.source ? { source: { ...tile.source } } : {}),
         })),
       );
     }
@@ -207,7 +211,7 @@ export const usePixiEditorActions = ({
 
     const layer = getLayer(layerId);
 
-    if (!layer || layer.tiles.length === 0) {
+    if (!layer || (layer.tiles.length === 0 && !layer.bounds)) {
       return;
     }
 
@@ -217,7 +221,18 @@ export const usePixiEditorActions = ({
         start: { x: tile.x, y: tile.y },
         end: { x: tile.x + delta.x, y: tile.y + delta.y },
         tileId: tile.tileId,
+        ...(tile.source ? { source: { ...tile.source } } : {}),
       })),
+      layer.bounds
+        ? {
+            start: { ...layer.bounds },
+            end: {
+              ...layer.bounds,
+              x: layer.bounds.x + delta.x,
+              y: layer.bounds.y + delta.y,
+            },
+          }
+        : undefined,
     );
     setSelection([]);
   };

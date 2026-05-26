@@ -1,4 +1,9 @@
-import type { Cell, TilePlacement } from '@/models/level';
+import type {
+  Cell,
+  LayerBounds,
+  LevelLayer,
+  TilePlacement,
+} from '@/models/level';
 
 import { TILE_SIZE } from './constants';
 
@@ -63,6 +68,18 @@ export const getTileBounds = (tiles: TilePlacement[]): TileBounds | null => {
     },
   );
 };
+
+export const layerBoundsToTileBounds = (bounds: LayerBounds): TileBounds => ({
+  minX: bounds.x,
+  maxX: bounds.x + bounds.width - 1,
+  minY: bounds.y,
+  maxY: bounds.y + bounds.height - 1,
+});
+
+export const getLayerTileBounds = (layer: LevelLayer): TileBounds | null =>
+  layer.bounds
+    ? layerBoundsToTileBounds(layer.bounds)
+    : getTileBounds(layer.tiles);
 
 export const isCellInTileBounds = (cell: Cell, bounds: TileBounds) =>
   cell.x >= bounds.minX &&

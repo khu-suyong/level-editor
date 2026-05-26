@@ -7,6 +7,8 @@ export const panel = style({
   top: vars.size.space.lg,
   right: vars.size.space.lg,
   width: '22rem',
+  maxHeight: `calc(100vh - (${vars.size.space.lg} * 2))`,
+  overflow: 'auto',
   backdropFilter: 'blur(10px)',
 });
 
@@ -75,4 +77,27 @@ export const zoomTickCenter = style({
 
 export const zoomTickEnd = style({
   textAlign: 'right',
+});
+
+export const debugTextarea = style({
+  width: '100%',
+  minHeight: '14rem',
+  resize: 'vertical',
+  fontFamily:
+    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+  fontSize: '0.75rem',
+  lineHeight: 1.5,
+  whiteSpace: 'pre',
+});
+
+export const debugStatus = style({
+  minHeight: vars.font.caption.lineHeight,
+});
+
+export const debugStatusError = style({
+  color: '#f87171',
+});
+
+export const debugStatusSuccess = style({
+  color: '#34d399',
 });

@@ -9,7 +9,7 @@ import { type EditorTool, setCanvasReady } from '@/stores/editor';
 import { TILE_SIZE } from './constants';
 import * as styles from './pixi-viewport.css';
 import type { ContextMenuState, PixiScene, SelectionRect } from './types';
-import { getCellRect, getTileBounds, tileColor } from './util';
+import { getCellRect, getLayerTileBounds, tileColor } from './util';
 
 type UsePixiSceneParams = {
   activeLayerId: Accessor<string>;
@@ -471,7 +471,7 @@ export const usePixiScene = ({
       (layer) => layer.id === selectedLayerId(),
     );
     const selectedLayerBounds = selectedLayer
-      ? getTileBounds(selectedLayer.tiles)
+      ? getLayerTileBounds(selectedLayer)
       : null;
 
     if (selectedLayerBounds) {

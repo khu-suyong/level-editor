@@ -3,7 +3,7 @@ import { Box } from '@suis-ui/kit';
 import { onCleanup, onMount } from 'solid-js';
 
 import { PixiViewport } from '../components/pixi-viewport';
-import type { LevelData } from '../models/level';
+import type { LevelData, RecognitionPayload } from '../models/level';
 import {
   editorStore,
   setActiveLayerId,
@@ -20,6 +20,7 @@ import {
   redoHistory,
   undoHistory,
 } from '../stores/history';
+import { insertRecognitionLayer } from '../stores/recognition';
 import { PropertyPanel } from './_components/property-panel';
 import { SidePanel } from './_components/side-panel';
 import { ToolPanel } from './_components/tool-panel';
@@ -82,6 +83,21 @@ export default function HomePage() {
     setSelectedLayerId(selected ? layerId : null);
     setSelection([]);
   };
+  const handleInsertRecognitionPayload = (payload: RecognitionPayload) => {
+    const layerId = insertRecognitionLayer(payload, {
+      viewportWidth: window.innerWidth,
+    });
+
+    if (!layerId) {
+      return null;
+    }
+
+    setActiveLayerId(layerId);
+    setSelectedLayerId(layerId);
+    setSelection([]);
+
+    return layerId;
+  };
 
   onMount(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -139,7 +155,11 @@ export default function HomePage() {
         selectedTool={editor().selectedTool}
         onSelectTool={setSelectedTool}
       />
-      <PropertyPanel zoom={editor().zoom} onZoomChange={setZoom} />
+      <PropertyPanel
+        zoom={editor().zoom}
+        onZoomChange={setZoom}
+        onInsertRecognitionPayload={handleInsertRecognitionPayload}
+      />
     </Box>
   );
 }

@@ -1,11 +1,11 @@
-import { Box, type InputProps } from '@suis-ui/kit';
+import { Box, type BoxProps } from '@suis-ui/kit';
 import { splitProps } from 'solid-js';
 
 import * as styles from './slider.css';
 
 export type SliderProps = Omit<
-  InputProps,
-  'as' | 'max' | 'min' | 'onChange' | 'onInput' | 'step' | 'type' | 'value'
+  BoxProps<'div'>,
+  'as' | 'onChange' | 'onInput'
 > & {
   max?: number;
   min?: number;
@@ -40,8 +40,8 @@ export const Slider = (props: SliderProps) => {
         max={`${local.max ?? 100}`}
         step={`${local.step ?? 1}`}
         value={local.value}
-        onInput={(event) => local.onChange(event.currentTarget.valueAsNumber)} 
-        />
+        onInput={(event) => local.onChange(event.currentTarget.valueAsNumber)}
+      />
     </Box>
   );
 };
