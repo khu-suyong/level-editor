@@ -2,6 +2,27 @@ import { z } from 'zod';
 
 const nonEmptyStringSchema = z.string().min(1);
 const finiteNumberSchema = z.number().finite();
+const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/u);
+
+export const TileIconSchema = z.enum([
+  'star',
+  'triangle',
+  'line',
+  'door',
+  'window',
+  'stairs',
+]);
+export type TileIcon = z.infer<typeof TileIconSchema>;
+
+export const CvShapeSchema = z.enum([
+  'star',
+  'triangle',
+  'line',
+  'door',
+  'window',
+  'stairs',
+]);
+export type CvShape = z.infer<typeof CvShapeSchema>;
 
 export type LayerBounds = z.infer<typeof LayerBoundsSchema>;
 export const LayerBoundsSchema = z.object({
@@ -24,8 +45,12 @@ export const TileSourceSchema = RecognitionTileSourceSchema;
 export type TileMapping = z.infer<typeof TileMappingSchema>;
 export const TileMappingSchema = z.object({
   tileId: z.number().int().nonnegative(),
-  sourceTileId: nonEmptyStringSchema,
+  backgroundColor: hexColorSchema,
+  icon: TileIconSchema,
+  iconColor: hexColorSchema,
+  cvShapes: CvShapeSchema.array(),
 });
+export type PaletteTile = TileMapping;
 
 export type TilePlacement = z.infer<typeof TilePlacementSchema>;
 export const TilePlacementSchema = z.object({
@@ -88,7 +113,7 @@ export const LevelDataSchema = z
   })
   .superRefine((levelData, context) => {
     const tileIds = new Set<number>();
-    const sourceTileIds = new Set<string>();
+    const cvShapes = new Set<CvShape>();
     const layerIds = new Set<string>();
     const layerOrders = new Set<number>();
 
@@ -103,15 +128,17 @@ export const LevelDataSchema = z
 
       tileIds.add(tileMapping.tileId);
 
-      if (sourceTileIds.has(tileMapping.sourceTileId)) {
-        context.addIssue({
-          code: 'custom',
-          message: 'tileTable sourceTileId values must be unique.',
-          path: ['tileTable', tileIndex, 'sourceTileId'],
-        });
-      }
+      for (const [shapeIndex, cvShape] of tileMapping.cvShapes.entries()) {
+        if (cvShapes.has(cvShape)) {
+          context.addIssue({
+            code: 'custom',
+            message: 'tileTable cvShapes values must be unique.',
+            path: ['tileTable', tileIndex, 'cvShapes', shapeIndex],
+          });
+        }
 
-      sourceTileIds.add(tileMapping.sourceTileId);
+        cvShapes.add(cvShape);
+      }
     }
 
     for (const [layerIndex, layer] of levelData.layers.entries()) {

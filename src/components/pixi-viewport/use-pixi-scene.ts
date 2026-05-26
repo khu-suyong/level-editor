@@ -3,13 +3,18 @@ import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import type { Accessor } from 'solid-js';
 import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 
-import type { Cell, LevelData, TilePlacement } from '@/models/level';
+import type {
+  Cell,
+  LevelData,
+  TileMapping,
+  TilePlacement,
+} from '@/models/level';
 import { type EditorTool, setCanvasReady } from '@/stores/editor';
 
 import { TILE_SIZE } from './constants';
 import * as styles from './pixi-viewport.css';
 import type { ContextMenuState, PixiScene, SelectionRect } from './types';
-import { getCellRect, getLayerTileBounds, tileColor } from './util';
+import { getCellRect, getLayerTileBounds } from './util';
 
 type UsePixiSceneParams = {
   activeLayerId: Accessor<string>;
@@ -34,7 +39,17 @@ type UsePixiSceneParams = {
 };
 
 const DEFAULT_VIEWPORT_BACKGROUND_COLOR = 0x101827;
+const DEFAULT_TILE_BACKGROUND_COLOR = 0x2563eb;
+const DEFAULT_TILE_ICON_COLOR = 0xf8fafc;
 const LAYER_BOUNDS_COLOR = 0x10b981;
+
+const fallbackTile: TileMapping = {
+  tileId: 0,
+  backgroundColor: '#2563eb',
+  icon: 'star',
+  iconColor: '#f8fafc',
+  cvShapes: [],
+};
 
 const clampColorChannel = (value: number) =>
   Math.min(255, Math.max(0, Math.round(value)));
@@ -154,6 +169,20 @@ const cssColorToHex = (color: string) => {
   }
 };
 
+const paletteColorToHex = (color: string, fallback: number) => {
+  if (!/^#[0-9a-fA-F]{6}$/u.test(color)) {
+    return fallback;
+  }
+
+  return Number.parseInt(color.slice(1), 16);
+};
+
+const getTileStyle = (level: LevelData, tileId: number) => ({
+  ...fallbackTile,
+  ...(level.tileTable.find((tile) => tile.tileId === tileId) ?? {}),
+  tileId,
+});
+
 const clearContainer = (container: Container) => {
   for (const child of container.removeChildren()) {
     child.destroy();
@@ -180,9 +209,107 @@ const createRectSprite = (
   return sprite;
 };
 
+const drawTileIcon = (
+  rect: Cell,
+  tile: TileMapping,
+  lineWidth: number,
+  alpha: number,
+) => {
+  const icon = new Graphics();
+  const color = paletteColorToHex(tile.iconColor, DEFAULT_TILE_ICON_COLOR);
+  const x = rect.x + TILE_SIZE * 0.28;
+  const y = rect.y + TILE_SIZE * 0.28;
+  const size = TILE_SIZE * 0.44;
+  const centerX = x + size / 2;
+  const centerY = y + size / 2;
+  const stroke = {
+    color,
+    alpha,
+    width: Math.max(lineWidth * 1.8, 1),
+  };
+
+  if (tile.icon === 'star') {
+    const radius = size / 2;
+    const innerRadius = radius * 0.45;
+    const points = Array.from({ length: 10 }, (_, index) => {
+      const angle = -Math.PI / 2 + (index * Math.PI) / 5;
+      const pointRadius = index % 2 === 0 ? radius : innerRadius;
+
+      return {
+        x: centerX + Math.cos(angle) * pointRadius,
+        y: centerY + Math.sin(angle) * pointRadius,
+      };
+    });
+
+    icon.moveTo(points[0].x, points[0].y);
+
+    for (const point of points.slice(1)) {
+      icon.lineTo(point.x, point.y);
+    }
+
+    icon.lineTo(points[0].x, points[0].y).stroke(stroke);
+    return icon;
+  }
+
+  if (tile.icon === 'triangle') {
+    icon
+      .moveTo(centerX, y)
+      .lineTo(x + size, y + size)
+      .lineTo(x, y + size)
+      .lineTo(centerX, y)
+      .stroke(stroke);
+    return icon;
+  }
+
+  if (tile.icon === 'line') {
+    icon
+      .moveTo(x, centerY)
+      .lineTo(x + size, centerY)
+      .stroke({
+        ...stroke,
+        width: Math.max(lineWidth * 2.4, 2),
+      });
+    return icon;
+  }
+
+  if (tile.icon === 'door') {
+    icon
+      .rect(x + size * 0.2, y, size * 0.6, size)
+      .stroke(stroke)
+      .circle(x + size * 0.63, y + size * 0.55, Math.max(lineWidth * 1.5, 1.5))
+      .fill({ color, alpha });
+    return icon;
+  }
+
+  if (tile.icon === 'window') {
+    icon
+      .rect(x, y, size, size)
+      .stroke(stroke)
+      .moveTo(centerX, y)
+      .lineTo(centerX, y + size)
+      .moveTo(x, centerY)
+      .lineTo(x + size, centerY)
+      .stroke(stroke);
+    return icon;
+  }
+
+  const step = size / 3;
+
+  icon
+    .moveTo(x, y + size)
+    .lineTo(x + step, y + size)
+    .lineTo(x + step, y + step * 2)
+    .lineTo(x + step * 2, y + step * 2)
+    .lineTo(x + step * 2, y + step)
+    .lineTo(x + size, y + step)
+    .stroke(stroke);
+
+  return icon;
+};
+
 const drawErasePreviewTile = (
   rect: Cell,
-  tileId: number,
+  tile: TileMapping,
   lineWidth: number,
 ) => {
   const previewTile = new Graphics();
@@ -192,7 +319,13 @@ const drawErasePreviewTile = (
 
   previewTile
     .rect(rect.x + inset, rect.y + inset, size, size)
-    .fill({ color: tileColor(tileId), alpha: 0.08 })
+    .fill({
+      color: paletteColorToHex(
+        tile.backgroundColor,
+        DEFAULT_TILE_BACKGROUND_COLOR,
+      ),
+      alpha: 0.08,
+    })
     .stroke({
       color: 0xf87171,
       alpha: 0.82,
@@ -339,11 +472,13 @@ export const usePixiScene = ({
 
       for (const tile of layer.tiles) {
         const rect = getCellRect(tile);
+        const tileStyle = getTileStyle(snapshot(), tile.tileId);
         const tileInset = 1;
         const tileSize = TILE_SIZE - tileInset * 2;
         const borderColor = isActiveLayer ? 0x93c5fd : 0x475569;
         const borderAlpha = isActiveLayer ? 0.55 : 0.32;
         const fillInset = tileInset + lineWidth;
+        const tileAlpha = isActiveLayer ? 0.82 : 0.36;
 
         current.tileLayer.addChild(
           createRectSprite(
@@ -359,9 +494,13 @@ export const usePixiScene = ({
             rect.y + fillInset,
             TILE_SIZE - fillInset * 2,
             TILE_SIZE - fillInset * 2,
-            tileColor(tile.tileId),
-            isActiveLayer ? 0.82 : 0.36,
+            paletteColorToHex(
+              tileStyle.backgroundColor,
+              DEFAULT_TILE_BACKGROUND_COLOR,
+            ),
+            tileAlpha,
           ),
+          drawTileIcon(rect, tileStyle, lineWidth, isActiveLayer ? 0.9 : 0.46),
         );
       }
     }
@@ -381,6 +520,7 @@ export const usePixiScene = ({
     if (selectedTool() === 'brush') {
       const previewCells = paintPreviewCells();
       const cells = previewCells.length > 0 ? previewCells : hoverCell();
+      const tileStyle = getTileStyle(snapshot(), brushTileId());
 
       for (const cell of Array.isArray(cells) ? cells : cells ? [cells] : []) {
         const rect = getCellRect(cell);
@@ -388,13 +528,22 @@ export const usePixiScene = ({
 
         previewTile
           .rect(rect.x + 1, rect.y + 1, TILE_SIZE - 2, TILE_SIZE - 2)
-          .fill({ color: tileColor(brushTileId()), alpha: 0.24 })
+          .fill({
+            color: paletteColorToHex(
+              tileStyle.backgroundColor,
+              DEFAULT_TILE_BACKGROUND_COLOR,
+            ),
+            alpha: 0.24,
+          })
           .stroke({
             color: 0x38bdf8,
             alpha: 0.56,
             width: lineWidth,
           });
-        current.preview.addChild(previewTile);
+        current.preview.addChild(
+          previewTile,
+          drawTileIcon(rect, tileStyle, lineWidth, 0.72),
+        );
       }
       return;
     }
@@ -422,7 +571,11 @@ export const usePixiScene = ({
 
         const rect = getCellRect(tile);
         current.preview.addChild(
-          drawErasePreviewTile(rect, tile.tileId, lineWidth),
+          drawErasePreviewTile(
+            rect,
+            getTileStyle(snapshot(), tile.tileId),
+            lineWidth,
+          ),
         );
       }
       return;
@@ -444,17 +597,27 @@ export const usePixiScene = ({
         x: targetCell.x + tile.x,
         y: targetCell.y + tile.y,
       });
+      const tileStyle = getTileStyle(snapshot(), tile.tileId);
       const previewTile = new Graphics();
 
       previewTile
         .rect(rect.x + 1, rect.y + 1, TILE_SIZE - 2, TILE_SIZE - 2)
-        .fill({ color: tileColor(tile.tileId), alpha: 0.24 })
+        .fill({
+          color: paletteColorToHex(
+            tileStyle.backgroundColor,
+            DEFAULT_TILE_BACKGROUND_COLOR,
+          ),
+          alpha: 0.24,
+        })
         .stroke({
           color: 0x38bdf8,
           alpha: 0.56,
           width: lineWidth,
         });
-      current.preview.addChild(previewTile);
+      current.preview.addChild(
+        previewTile,
+        drawTileIcon(rect, tileStyle, lineWidth, 0.72),
+      );
     }
   };
 
@@ -513,7 +676,13 @@ export const usePixiScene = ({
       );
 
       if (delta) {
-        selectedTile.fill({ color: tileColor(tile.tileId), alpha: 0.28 });
+        selectedTile.fill({
+          color: paletteColorToHex(
+            getTileStyle(snapshot(), tile.tileId).backgroundColor,
+            DEFAULT_TILE_BACKGROUND_COLOR,
+          ),
+          alpha: 0.28,
+        });
       }
 
       selectedTile.stroke({ color: 0xfacc15, alpha: 0.9, width: lineWidth });

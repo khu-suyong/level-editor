@@ -35,6 +35,12 @@ export type ReplaceHistoryAction = {
   delete: TilePlacement[];
 };
 
+export type ReplaceLevelHistoryAction = {
+  type: 'replace-level';
+  before: LevelData;
+  after: LevelData;
+};
+
 export type AddLayerHistoryAction = {
   type: 'add-layer';
   layer: LevelLayer;
@@ -58,7 +64,8 @@ export type EditorHistoryAction =
   | AddHistoryAction
   | DeleteHistoryAction
   | MoveHistoryAction
-  | ReplaceHistoryAction;
+  | ReplaceHistoryAction
+  | ReplaceLevelHistoryAction;
 
 export type EditorHistoryState = {
   actions: EditorHistoryAction[];
@@ -77,6 +84,7 @@ const cloneTile = (tile: TilePlacement): TilePlacement => ({
 
 const cloneTileMapping = (tileMapping: TileMapping): TileMapping => ({
   ...tileMapping,
+  cvShapes: [...tileMapping.cvShapes],
 });
 
 const cloneLayer = (layer: LevelLayer): LevelLayer => ({
@@ -120,6 +128,14 @@ const cloneHistoryAction = (
       ...action,
       add: action.add.map(cloneTile),
       delete: action.delete.map(cloneTile),
+    };
+  }
+
+  if (action.type === 'replace-level') {
+    return {
+      ...action,
+      before: cloneSnapshot(action.before),
+      after: cloneSnapshot(action.after),
     };
   }
 
@@ -186,6 +202,10 @@ export const applyHistoryAction = (
   snapshot: LevelData,
   action: EditorHistoryAction,
 ) => {
+  if (action.type === 'replace-level') {
+    return cloneSnapshot(action.after);
+  }
+
   if (action.type === 'add-layer') {
     return {
       ...snapshot,
@@ -238,6 +258,10 @@ export const revertHistoryAction = (
   snapshot: LevelData,
   action: EditorHistoryAction,
 ) => {
+  if (action.type === 'replace-level') {
+    return cloneSnapshot(action.before);
+  }
+
   if (action.type === 'add-layer') {
     const tileMappingIds = new Set(
       action.tileMappings.map((tileMapping) => tileMapping.tileId),
@@ -393,6 +417,20 @@ export const addLayer = (
   tileMappings: TileMapping[] = [],
 ) => {
   recordHistoryAction({ type: 'add-layer', layer, tileMappings });
+};
+
+export const replaceLevel = (nextSnapshot: LevelData) => {
+  const snapshot = currentSnapshot.get();
+
+  if (!snapshot) {
+    return;
+  }
+
+  recordHistoryAction({
+    type: 'replace-level',
+    before: snapshot,
+    after: nextSnapshot,
+  });
 };
 
 export const moveTiles = (

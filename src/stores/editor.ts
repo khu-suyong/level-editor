@@ -15,6 +15,7 @@ export type EditorState = {
   activeLayerId: string;
   canvasReady: boolean;
   clipboard: TileClipboard | null;
+  selectedBrushTileId: number;
   selectedLayerId: string | null;
   selectedTool: EditorTool;
   selection: TilePlacement[];
@@ -25,6 +26,7 @@ const initialState: EditorState = {
   activeLayerId: 'base',
   canvasReady: false,
   clipboard: null,
+  selectedBrushTileId: 0,
   selectedLayerId: null,
   selectedTool: 'select',
   selection: [],
@@ -37,6 +39,8 @@ export const setActiveLayerId = (activeLayerId: string) =>
   editorStore.setKey('activeLayerId', activeLayerId);
 export const setSelectedLayerId = (selectedLayerId: string | null) =>
   editorStore.setKey('selectedLayerId', selectedLayerId);
+export const setSelectedBrushTileId = (selectedBrushTileId: number) =>
+  editorStore.setKey('selectedBrushTileId', selectedBrushTileId);
 export const setSelectedTool = (selectedTool: EditorTool) =>
   editorStore.setKey('selectedTool', selectedTool);
 export const setZoom = (zoom: number) => editorStore.setKey('zoom', zoom);

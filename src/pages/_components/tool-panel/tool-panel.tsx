@@ -10,6 +10,8 @@ import {
 import { For } from 'solid-js';
 
 import { Icon, type IconType } from '@/components/ui/icon';
+import { TilePreview } from '@/components/ui/tile-preview';
+import type { TileMapping } from '@/models/level';
 import type { EditorTool } from '@/stores/editor';
 import * as styles from './tool-panel.css';
 
@@ -27,9 +29,12 @@ const tools = [
 type ToolPanelProps = {
   canRedo: boolean;
   canUndo: boolean;
+  selectedBrushTileId: number;
   onRedo: () => void;
   selectedTool: EditorTool;
+  tileTable: TileMapping[];
   onUndo: () => void;
+  onSelectBrushTile: (tileId: number) => void;
   onSelectTool: (selectedTool: EditorTool) => void;
 };
 
@@ -117,6 +122,46 @@ export function ToolPanel(props: ToolPanelProps) {
                 active={props.selectedTool === tool.id}
                 onClick={() => props.onSelectTool(tool.id)}
               />
+            )}
+          </For>
+        </Box>
+      </Box>
+
+      <Box
+        class={styles.groupStyle}
+        direction={'row'}
+        p={'xs'}
+        gap={'sm'}
+        r={'md'}
+        bg={'surface.high'}
+        bc={'surface.higher'}
+        bd={'thin'}
+        shadow={'md'}
+        aria-label={'Brush tile picker'}
+      >
+        <Box direction={'row'} aria-label={'Brush tiles'}>
+          <For each={props.tileTable}>
+            {(tile) => (
+              <Tooltip
+                content={<Box text={'caption'}>{`Tile ${tile.tileId}`}</Box>}
+                placement={'top'}
+                withArrow
+                offset={12}
+              >
+                <Box as={'span'} direction={'row'}>
+                  <Button
+                    variant={'ghost'}
+                    size={'md'}
+                    p={'sm'}
+                    type={'icon'}
+                    active={props.selectedBrushTileId === tile.tileId}
+                    aria-label={`Use tile ${tile.tileId} brush`}
+                    onClick={() => props.onSelectBrushTile(tile.tileId)}
+                  >
+                    <TilePreview tile={tile} size={18} />
+                  </Button>
+                </Box>
+              </Tooltip>
             )}
           </For>
         </Box>

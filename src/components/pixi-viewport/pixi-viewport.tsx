@@ -43,6 +43,7 @@ export const PixiViewport = (props: PixiViewportProps) => {
   const [isMovingSelection, setIsMovingSelection] = createSignal(false);
 
   const activeLayerId = () => editor().activeLayerId;
+  const brushTileId = () => editor().selectedBrushTileId;
   const clipboard = () => editor().clipboard;
   const selectedLayerId = () => editor().selectedLayerId;
   const selectedTool = () => editor().selectedTool;
@@ -72,13 +73,14 @@ export const PixiViewport = (props: PixiViewportProps) => {
 
   const actions = usePixiEditorActions({
     activeLayerId,
+    brushTileId,
     clipboard,
     selection,
     snapshot,
   });
   const sceneApi = usePixiScene({
     activeLayerId,
-    brushTileId: actions.getDefaultTileId,
+    brushTileId: actions.getBrushTileId,
     clipboard,
     contextMenu,
     dragDelta,

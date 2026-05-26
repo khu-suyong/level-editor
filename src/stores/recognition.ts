@@ -9,7 +9,13 @@ import type {
   TilePlacement,
 } from '@/models/level';
 
-import { addLayer, currentSnapshot } from './history';
+import { currentSnapshot, replaceLevel } from './history';
+import {
+  buildCvShapeMapping,
+  createRandomPaletteTile,
+  isCvShape,
+  normalizeCvShape,
+} from './palette';
 
 type CellRange = {
   minX: number;
@@ -72,14 +78,6 @@ const getNextLayerOrder = (level: LevelData) => {
   return Math.max(...level.layers.map((layer) => layer.order)) + 1;
 };
 
-const getNextTileId = (tileTable: TileMapping[]) => {
-  if (tileTable.length === 0) {
-    return 0;
-  }
-
-  return Math.max(...tileTable.map((tileMapping) => tileMapping.tileId)) + 1;
-};
-
 const getLayerBounds = (
   payload: RecognitionPayload,
   options: RecognitionLayerBuildOptions,
@@ -140,30 +138,29 @@ const getObjectCellRange = (
 };
 
 const buildTileMappingResolver = (level: LevelData) => {
-  const sourceTileIds = new Map(
-    level.tileTable.map((tileMapping) => [
-      tileMapping.sourceTileId,
-      tileMapping.tileId,
-    ]),
-  );
+  const shapeTileIds = buildCvShapeMapping(level.tileTable);
   const tileMappings: TileMapping[] = [];
-  let nextTileId = getNextTileId(level.tileTable);
 
-  const resolveTileId = (sourceTileId: string) => {
-    const existingTileId = sourceTileIds.get(sourceTileId);
+  const resolveTileId = (rawShape: string) => {
+    const normalizedShape = normalizeCvShape(rawShape);
+
+    if (!isCvShape(normalizedShape)) {
+      return null;
+    }
+
+    const existingTileId = shapeTileIds.get(normalizedShape);
 
     if (existingTileId !== undefined) {
       return existingTileId;
     }
 
-    const tileMapping = {
-      tileId: nextTileId,
-      sourceTileId,
-    };
+    const tileMapping = createRandomPaletteTile(
+      [...level.tileTable, ...tileMappings],
+      [normalizedShape],
+    );
 
-    nextTileId += 1;
     tileMappings.push(tileMapping);
-    sourceTileIds.set(sourceTileId, tileMapping.tileId);
+    shapeTileIds.set(normalizedShape, tileMapping.tileId);
 
     return tileMapping.tileId;
   };
@@ -215,6 +212,10 @@ export const buildRecognitionLayer = (
 
     const tileId = tileMappingResolver.resolveTileId(object.shape);
 
+    if (tileId === null) {
+      continue;
+    }
+
     for (let y = range.minY; y <= range.maxY; y += 1) {
       for (let x = range.minX; x <= range.maxX; x += 1) {
         tileMap.set(coordinateKey({ x, y }), {
@@ -262,7 +263,11 @@ export const insertRecognitionLayer = (
 
   const result = buildRecognitionLayer(snapshot, payload, options);
 
-  addLayer(result.layer, result.tileMappings);
+  replaceLevel({
+    ...snapshot,
+    tileTable: [...snapshot.tileTable, ...result.tileMappings],
+    layers: [...snapshot.layers, result.layer],
+  });
 
   return result.layer.id;
 };

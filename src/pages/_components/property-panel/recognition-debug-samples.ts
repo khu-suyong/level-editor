@@ -8,6 +8,75 @@ export type RecognitionDebugSample = {
 
 export const recognitionDebugSamples = [
   {
+    id: 'preset-shapes',
+    label: 'Preset shapes',
+    payload: {
+      id: 'preset-shapes-photo',
+      name: 'Preset Shape Scan',
+      image: {
+        width: 1200,
+        height: 800,
+        name: 'preset-shapes.jpg',
+      },
+      objects: [
+        {
+          id: 'star-a',
+          shape: 'star',
+          x: 120,
+          y: 140,
+          width: 160,
+          height: 160,
+          confidence: 0.92,
+        },
+        {
+          id: 'triangle-a',
+          shape: 'triangle',
+          x: 340,
+          y: 140,
+          width: 180,
+          height: 160,
+          confidence: 0.9,
+        },
+        {
+          id: 'line-a',
+          shape: 'line',
+          x: 600,
+          y: 180,
+          width: 360,
+          height: 48,
+          confidence: 0.88,
+        },
+        {
+          id: 'door-a',
+          shape: 'door',
+          x: 160,
+          y: 480,
+          width: 160,
+          height: 220,
+          confidence: 0.86,
+        },
+        {
+          id: 'window-a',
+          shape: 'window',
+          x: 480,
+          y: 500,
+          width: 180,
+          height: 140,
+          confidence: 0.84,
+        },
+        {
+          id: 'stairs-a',
+          shape: 'stairs',
+          x: 760,
+          y: 460,
+          width: 260,
+          height: 200,
+          confidence: 0.82,
+        },
+      ],
+    },
+  },
+  {
     id: 'wide-room',
     label: 'Wide room',
     payload: {

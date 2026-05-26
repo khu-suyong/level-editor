@@ -12,6 +12,68 @@ export const panel = style({
   overflow: 'auto',
 });
 
+export const tabs = style({
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: vars.size.space.xxs,
+  padding: vars.size.space.xxs,
+  borderRadius: vars.size.space.md,
+  background: vars.color.surface.main,
+});
+
+export const tabButton = style({
+  justifyContent: 'center',
+});
+
+export const paletteList = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: vars.size.space.sm,
+});
+
+export const paletteItem = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: vars.size.space.xs,
+  padding: vars.size.space.xs,
+  border: `1px solid ${vars.color.surface.higher}`,
+  borderRadius: vars.size.space.sm,
+  background: vars.color.surface.main,
+});
+
+export const formGrid = style({
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: vars.size.space.xs,
+});
+
+export const field = style({
+  display: 'flex',
+  minWidth: 0,
+  flexDirection: 'column',
+  gap: vars.size.space.xxs,
+});
+
+export const colorInput = style({
+  minHeight: vars.size.space.xl,
+  padding: vars.size.space.xxs,
+});
+
+export const shapeRow = style({
+  display: 'grid',
+  gridTemplateColumns: '1fr auto',
+  gap: vars.size.space.xs,
+  alignItems: 'center',
+});
+
+export const status = style({
+  minHeight: vars.font.caption.lineHeight,
+});
+
+export const statusError = style({
+  color: vars.color.error.main,
+});
+
 export const appMark = style({
   display: 'grid',
   placeItems: 'center',

@@ -26,6 +26,7 @@ const cloneTile = (tile: TilePlacement): TilePlacement => ({ ...tile });
 
 type UsePixiEditorActionsParams = {
   activeLayerId: Accessor<string>;
+  brushTileId: Accessor<number>;
   clipboard: Accessor<TileClipboard | null>;
   selection: Accessor<TilePlacement[]>;
   snapshot: Accessor<LevelData>;
@@ -33,6 +34,7 @@ type UsePixiEditorActionsParams = {
 
 export const usePixiEditorActions = ({
   activeLayerId,
+  brushTileId,
   clipboard,
   selection,
   snapshot,
@@ -58,8 +60,13 @@ export const usePixiEditorActions = ({
     return layer ? getLayerTileBounds(layer) : null;
   };
 
-  const getDefaultTileId = () =>
-    snapshot().tileTable[0]?.tileId ?? DEFAULT_TILE_ID;
+  const getBrushTileId = () => {
+    const selectedTileId = brushTileId();
+
+    return snapshot().tileTable.some((tile) => tile.tileId === selectedTileId)
+      ? selectedTileId
+      : (snapshot().tileTable[0]?.tileId ?? DEFAULT_TILE_ID);
+  };
 
   const dispatchAddOrReplace = (
     tiles: TilePlacement[],
@@ -123,7 +130,7 @@ export const usePixiEditorActions = ({
   const paintCells = (cells: Cell[]) => {
     const tiles = uniqueCells(cells).map((cell) => ({
       ...cell,
-      tileId: getDefaultTileId(),
+      tileId: getBrushTileId(),
     }));
 
     dispatchAddOrReplace(tiles);
@@ -286,7 +293,7 @@ export const usePixiEditorActions = ({
     eraseCells,
     findTileAt,
     getActiveTiles,
-    getDefaultTileId,
+    getBrushTileId,
     getLayerBounds,
     moveLayer,
     moveSelection,

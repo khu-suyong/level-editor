@@ -1,12 +1,13 @@
 import { useStore } from '@nanostores/solid';
 import { Box } from '@suis-ui/kit';
-import { onCleanup, onMount } from 'solid-js';
+import { createEffect, onCleanup, onMount } from 'solid-js';
 
 import { PixiViewport } from '../components/pixi-viewport';
 import type { LevelData, RecognitionPayload } from '../models/level';
 import {
   editorStore,
   setActiveLayerId,
+  setSelectedBrushTileId,
   setSelectedLayerId,
   setSelectedTool,
   setSelection,
@@ -18,6 +19,7 @@ import {
   currentSnapshot,
   initializeHistory,
   redoHistory,
+  replaceLevel,
   undoHistory,
 } from '../stores/history';
 import { insertRecognitionLayer } from '../stores/recognition';
@@ -29,7 +31,15 @@ import * as styles from './index.css';
 const defaultLevel: LevelData = {
   id: 'default-level',
   name: 'level name',
-  tileTable: [{ tileId: 0, sourceTileId: 'default' }],
+  tileTable: [
+    {
+      tileId: 0,
+      backgroundColor: '#2563eb',
+      icon: 'star',
+      iconColor: '#f8fafc',
+      cvShapes: [],
+    },
+  ],
   layers: [
     {
       id: 'base',
@@ -83,6 +93,10 @@ export default function HomePage() {
     setSelectedLayerId(selected ? layerId : null);
     setSelection([]);
   };
+  const handleApplyLevel = (nextLevel: LevelData) => {
+    replaceLevel(nextLevel);
+    setSelection([]);
+  };
   const handleInsertRecognitionPayload = (payload: RecognitionPayload) => {
     const layerId = insertRecognitionLayer(payload, {
       viewportWidth: window.innerWidth,
@@ -98,6 +112,20 @@ export default function HomePage() {
 
     return layerId;
   };
+
+  createEffect(() => {
+    const currentLevel = level();
+    const selectedBrushTileId = editor().selectedBrushTileId;
+
+    if (
+      currentLevel.tileTable.length > 0 &&
+      !currentLevel.tileTable.some(
+        (tile) => tile.tileId === selectedBrushTileId,
+      )
+    ) {
+      setSelectedBrushTileId(currentLevel.tileTable[0].tileId);
+    }
+  });
 
   onMount(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -130,7 +158,13 @@ export default function HomePage() {
   });
 
   return (
-    <Box as={'main'} class={styles.shell} bg={'surface.main'} c={'text.main'}>
+    <Box
+      as={'main'}
+      class={styles.shell}
+      bg={'surface.main'}
+      c={'text.main'}
+      z={'0'}
+    >
       <Box
         as={'section'}
         class={styles.canvasLayer}
@@ -142,17 +176,23 @@ export default function HomePage() {
 
       <SidePanel
         activeLayerId={editor().activeLayerId}
+        selectedBrushTileId={editor().selectedBrushTileId}
         selectedLayerId={editor().selectedLayerId}
         level={level()}
+        onApplyLevel={handleApplyLevel}
         onSelectActiveLayer={handleSelectLayer}
+        onSelectBrushTile={setSelectedBrushTileId}
         onSelectLayerRect={handleSelectLayerRect}
       />
       <ToolPanel
         canUndo={undoAvailable()}
         canRedo={redoAvailable()}
+        selectedBrushTileId={editor().selectedBrushTileId}
         onUndo={handleUndo}
         onRedo={handleRedo}
         selectedTool={editor().selectedTool}
+        tileTable={level().tileTable}
+        onSelectBrushTile={setSelectedBrushTileId}
         onSelectTool={setSelectedTool}
       />
       <PropertyPanel
