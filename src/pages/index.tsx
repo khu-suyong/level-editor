@@ -7,6 +7,7 @@ import type { LevelData } from '../models/level';
 import {
   editorStore,
   setActiveLayerId,
+  setSelectedLayerId,
   setSelectedTool,
   setSelection,
   setZoom,
@@ -77,6 +78,10 @@ export default function HomePage() {
     setActiveLayerId(layerId);
     setSelection([]);
   };
+  const handleSelectLayerRect = (layerId: string, selected: boolean) => {
+    setSelectedLayerId(selected ? layerId : null);
+    setSelection([]);
+  };
 
   onMount(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -121,8 +126,10 @@ export default function HomePage() {
 
       <SidePanel
         activeLayerId={editor().activeLayerId}
+        selectedLayerId={editor().selectedLayerId}
         level={level()}
-        onSelectLayer={handleSelectLayer}
+        onSelectActiveLayer={handleSelectLayer}
+        onSelectLayerRect={handleSelectLayerRect}
       />
       <ToolPanel
         canUndo={undoAvailable()}

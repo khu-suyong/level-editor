@@ -17,6 +17,7 @@ import {
   cellsEqual,
   clamp,
   coordinateKey,
+  isCellInTileBounds,
   isEditableTarget,
   normalizeTiles,
   uniqueCells,
@@ -32,12 +33,14 @@ type UsePixiViewportInputParams = {
     PixiSceneApi,
     'getHostPoint' | 'redrawScene' | 'resetView' | 'screenToCell'
   >;
+  selectedLayerId: Accessor<string | null>;
   selectedTool: Accessor<EditorTool>;
   selection: Accessor<TilePlacement[]>;
   setContextMenu: Setter<ContextMenuState>;
   setDragDelta: Setter<Cell | null>;
   setErasePreviewCells: Setter<Cell[]>;
   setHoverCell: Setter<Cell | null>;
+  setLayerDragDelta: Setter<Cell | null>;
   setIsPanning: Setter<boolean>;
   setIsMovingSelection: Setter<boolean>;
   setPaintPreviewCells: Setter<Cell[]>;
@@ -63,12 +66,14 @@ export const usePixiViewportInput = ({
   hoverCell,
   scene,
   sceneApi,
+  selectedLayerId,
   selectedTool,
   selection,
   setContextMenu,
   setDragDelta,
   setErasePreviewCells,
   setHoverCell,
+  setLayerDragDelta,
   setIsPanning,
   setIsMovingSelection,
   setPaintPreviewCells,
@@ -102,6 +107,7 @@ export const usePixiViewportInput = ({
     isSpaceDown = false;
     setDragDelta(null);
     setErasePreviewCells([]);
+    setLayerDragDelta(null);
     setIsPanning(false);
     setIsMovingSelection(false);
     setPaintPreviewCells([]);
@@ -176,6 +182,17 @@ export const usePixiViewportInput = ({
     setIsMovingSelection(true);
   };
 
+  const beginMoveLayer = (pointerId: number, layerId: string, cell: Cell) => {
+    dragState = {
+      mode: 'move-layer',
+      layerId,
+      pointerId,
+      startCell: cell,
+    };
+    setLayerDragDelta({ x: 0, y: 0 });
+    setIsMovingSelection(true);
+  };
+
   const beginSelectionRect = (
     pointerId: number,
     cell: Cell,
@@ -231,6 +248,14 @@ export const usePixiViewportInput = ({
 
     if (dragState.mode === 'move-selection') {
       setDragDelta({
+        x: cell.x - dragState.startCell.x,
+        y: cell.y - dragState.startCell.y,
+      });
+      return;
+    }
+
+    if (dragState.mode === 'move-layer') {
+      setLayerDragDelta({
         x: cell.x - dragState.startCell.x,
         y: cell.y - dragState.startCell.y,
       });
@@ -301,6 +326,18 @@ export const usePixiViewportInput = ({
       return;
     }
 
+    if (dragState.mode === 'move-layer') {
+      if (!cell) {
+        return;
+      }
+
+      actions.moveLayer(dragState.layerId, {
+        x: cell.x - dragState.startCell.x,
+        y: cell.y - dragState.startCell.y,
+      });
+      return;
+    }
+
     if (dragState.mode === 'select-rect') {
       if (cell) {
         if (dragState.moved) {
@@ -347,6 +384,19 @@ export const usePixiViewportInput = ({
 
     if (event.button === 1 || isSpaceDown || selectedTool() === 'pan') {
       beginPan(event.pointerId, pointerCell.screenPoint);
+      return;
+    }
+
+    const selectedLayer = selectedLayerId();
+    const selectedLayerBounds = actions.getLayerBounds(selectedLayer);
+
+    if (
+      selectedTool() === 'select' &&
+      selectedLayer &&
+      selectedLayerBounds &&
+      isCellInTileBounds(pointerCell.cell, selectedLayerBounds)
+    ) {
+      beginMoveLayer(event.pointerId, selectedLayer, pointerCell.cell);
       return;
     }
 

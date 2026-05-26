@@ -14,7 +14,13 @@ import {
 } from '@/stores/history';
 
 import { DEFAULT_TILE_ID } from './constants';
-import { cellsEqual, coordinateKey, normalizeTiles, uniqueCells } from './util';
+import {
+  cellsEqual,
+  coordinateKey,
+  getTileBounds,
+  normalizeTiles,
+  uniqueCells,
+} from './util';
 
 const cloneTile = (tile: TilePlacement): TilePlacement => ({ ...tile });
 
@@ -40,6 +46,14 @@ export const usePixiEditorActions = ({
 
   const findTileAt = (cell: Cell) =>
     getActiveTiles().find((tile) => cellsEqual(tile, cell)) ?? null;
+
+  const getLayer = (layerId: string | null) =>
+    layerId
+      ? (snapshot().layers.find((layer) => layer.id === layerId) ?? null)
+      : null;
+
+  const getLayerBounds = (layerId: string | null) =>
+    getTileBounds(getLayer(layerId)?.tiles ?? []);
 
   const getDefaultTileId = () =>
     snapshot().tileTable[0]?.tileId ?? DEFAULT_TILE_ID;
@@ -186,6 +200,28 @@ export const usePixiEditorActions = ({
     setSelection(movedTiles);
   };
 
+  const moveLayer = (layerId: string, delta: Cell) => {
+    if (delta.x === 0 && delta.y === 0) {
+      return;
+    }
+
+    const layer = getLayer(layerId);
+
+    if (!layer || layer.tiles.length === 0) {
+      return;
+    }
+
+    moveTiles(
+      layerId,
+      layer.tiles.map((tile) => ({
+        start: { x: tile.x, y: tile.y },
+        end: { x: tile.x + delta.x, y: tile.y + delta.y },
+        tileId: tile.tileId,
+      })),
+    );
+    setSelection([]);
+  };
+
   const copySelection = () => {
     if (selection().length === 0) {
       return;
@@ -236,6 +272,8 @@ export const usePixiEditorActions = ({
     findTileAt,
     getActiveTiles,
     getDefaultTileId,
+    getLayerBounds,
+    moveLayer,
     moveSelection,
     paintCells,
     pasteClipboard,

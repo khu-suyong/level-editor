@@ -50,4 +50,10 @@ export type DragState =
       mode: 'move-selection';
       pointerId: number;
       startCell: Cell;
+    }
+  | {
+      mode: 'move-layer';
+      layerId: string;
+      pointerId: number;
+      startCell: Cell;
     };

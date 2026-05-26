@@ -36,6 +36,40 @@ export const uniqueCells = (cells: Cell[]) => {
   return [...cellMap.values()];
 };
 
+export type TileBounds = {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+};
+
+export const getTileBounds = (tiles: TilePlacement[]): TileBounds | null => {
+  if (tiles.length === 0) {
+    return null;
+  }
+
+  return tiles.reduce<TileBounds>(
+    (bounds, tile) => ({
+      minX: Math.min(bounds.minX, tile.x),
+      maxX: Math.max(bounds.maxX, tile.x),
+      minY: Math.min(bounds.minY, tile.y),
+      maxY: Math.max(bounds.maxY, tile.y),
+    }),
+    {
+      minX: tiles[0].x,
+      maxX: tiles[0].x,
+      minY: tiles[0].y,
+      maxY: tiles[0].y,
+    },
+  );
+};
+
+export const isCellInTileBounds = (cell: Cell, bounds: TileBounds) =>
+  cell.x >= bounds.minX &&
+  cell.x <= bounds.maxX &&
+  cell.y >= bounds.minY &&
+  cell.y <= bounds.maxY;
+
 export const tileColor = (tileId: number) => {
   const colors = [0x2563eb, 0x059669, 0xdc2626, 0xd97706, 0x7c3aed, 0x0891b2];
 

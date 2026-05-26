@@ -9,7 +9,7 @@ import { type EditorTool, setCanvasReady } from '@/stores/editor';
 import { TILE_SIZE } from './constants';
 import * as styles from './pixi-viewport.css';
 import type { ContextMenuState, PixiScene, SelectionRect } from './types';
-import { getCellRect, tileColor } from './util';
+import { getCellRect, getTileBounds, tileColor } from './util';
 
 type UsePixiSceneParams = {
   activeLayerId: Accessor<string>;
@@ -22,7 +22,9 @@ type UsePixiSceneParams = {
   erasePreviewCells: Accessor<Cell[]>;
   getHost: () => HTMLDivElement;
   hoverCell: Accessor<Cell | null>;
+  layerDragDelta: Accessor<Cell | null>;
   paintPreviewCells: Accessor<Cell[]>;
+  selectedLayerId: Accessor<string | null>;
   selectedTool: Accessor<EditorTool>;
   selection: Accessor<TilePlacement[]>;
   selectionRect: Accessor<SelectionRect | null>;
@@ -32,6 +34,7 @@ type UsePixiSceneParams = {
 };
 
 const DEFAULT_VIEWPORT_BACKGROUND_COLOR = 0x101827;
+const LAYER_BOUNDS_COLOR = 0x10b981;
 
 const clampColorChannel = (value: number) =>
   Math.min(255, Math.max(0, Math.round(value)));
@@ -231,7 +234,9 @@ export const usePixiScene = ({
   erasePreviewCells,
   getHost,
   hoverCell,
+  layerDragDelta,
   paintPreviewCells,
+  selectedLayerId,
   selectedTool,
   selection,
   selectionRect,
@@ -461,6 +466,29 @@ export const usePixiScene = ({
     const rectSelection = selectionRect();
 
     clearContainer(current.overlay);
+
+    const selectedLayer = snapshot().layers.find(
+      (layer) => layer.id === selectedLayerId(),
+    );
+    const selectedLayerBounds = selectedLayer
+      ? getTileBounds(selectedLayer.tiles)
+      : null;
+
+    if (selectedLayerBounds) {
+      const layerDelta = layerDragDelta();
+      const layerBoundsGraphic = new Graphics();
+
+      layerBoundsGraphic
+        .rect(
+          (selectedLayerBounds.minX + (layerDelta?.x ?? 0)) * TILE_SIZE,
+          (selectedLayerBounds.minY + (layerDelta?.y ?? 0)) * TILE_SIZE,
+          (selectedLayerBounds.maxX - selectedLayerBounds.minX + 1) * TILE_SIZE,
+          (selectedLayerBounds.maxY - selectedLayerBounds.minY + 1) * TILE_SIZE,
+        )
+        .fill({ color: LAYER_BOUNDS_COLOR, alpha: 0.1 })
+        .stroke({ color: LAYER_BOUNDS_COLOR, alpha: 0.72, width: lineWidth });
+      current.overlay.addChild(layerBoundsGraphic);
+    }
 
     if (hover) {
       const rect = getCellRect(hover);

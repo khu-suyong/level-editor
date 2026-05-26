@@ -1,4 +1,4 @@
-import { Box, Button, Item } from '@suis-ui/kit';
+import { Box, Button, CheckBox, Item } from '@suis-ui/kit';
 import { ChevronDown, ChevronUp, Layers, Menu, Square } from 'lucide-solid';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 
@@ -8,8 +8,10 @@ import * as styles from './side-panel.css';
 
 type SidePanelProps = {
   activeLayerId: string;
+  selectedLayerId: string | null;
   level: LevelData;
-  onSelectLayer: (layerId: string) => void;
+  onSelectActiveLayer: (layerId: string) => void;
+  onSelectLayerRect: (layerId: string, selected: boolean) => void;
 };
 
 const sortLayers = (layers: LevelLayer[]) =>
@@ -45,7 +47,13 @@ export const SidePanel = (props: SidePanelProps) => {
         <Box as={'ul'} aria-label={'Layer tree'}>
           <For each={layers()}>
             {(layer) => (
-              <LayerItem layer={layer} activeLayerId={props.activeLayerId} />
+              <LayerItem
+                layer={layer}
+                activeLayerId={props.activeLayerId}
+                selectedLayerId={props.selectedLayerId}
+                onSelectActiveLayer={props.onSelectActiveLayer}
+                onSelectLayerRect={props.onSelectLayerRect}
+              />
             )}
           </For>
         </Box>
@@ -57,33 +65,48 @@ export const SidePanel = (props: SidePanelProps) => {
 type LayerItemProps = {
   layer: LevelLayer;
   activeLayerId?: string;
+  selectedLayerId?: string | null;
+  onSelectActiveLayer: (layerId: string) => void;
+  onSelectLayerRect: (layerId: string, selected: boolean) => void;
 };
 const LayerItem = (props: LayerItemProps) => {
   const [expand, setExpand] = createSignal(false);
+  const handleClick = () => {
+    props.onSelectActiveLayer(props.layer.id);
+    setExpand((prev) => !prev);
+  };
 
   return (
     <Box as={'li'}>
-      <Item
-        as={Button}
-        variant={'ghost'}
-        media={<Icon name={Layers} />}
-        title={
-          <Box
-            direction={'row'}
-            justify={'flex-start'}
-            align={'center'}
-            gap={'xs'}
-          >
-            <Box as={'span'}>{props.layer.name}</Box>
-            <Box as={'span'} text={'caption'} c={'text.caption'}>
-              {props.layer.id}
+      <Box direction={'row'} align={'center'} gap={'xxs'}>
+        <Item
+          as={Button}
+          variant={'ghost'}
+          media={
+            <CheckBox
+              checked={props.selectedLayerId === props.layer.id}
+              onChecked={(checked) => props.onSelectLayerRect(props.layer.id, checked)}
+            />
+          }
+          title={
+            <Box
+              direction={'row'}
+              justify={'flex-start'}
+              align={'center'}
+              gap={'xs'}
+            >
+              <Box as={'span'}>{props.layer.name}</Box>
+              <Box as={'span'} text={'caption'} c={'text.caption'}>
+                {props.layer.id}
+              </Box>
             </Box>
-          </Box>
-        }
-        action={<Icon name={expand() ? ChevronUp : ChevronDown} />}
-        active={props.activeLayerId === props.layer.id}
-        onClick={() => setExpand((prev) => !prev)}
-      />
+          }
+          action={<Icon name={expand() ? ChevronUp : ChevronDown} />}
+          // active={props.activeLayerId === props.layer.id}
+          onClick={handleClick}
+          style={{ flex: '1 1 auto' }}
+        />
+      </Box>
       <Show when={expand()}>
         <Box as={'ul'} pl={'md'}>
           <For each={props.layer.tiles}>

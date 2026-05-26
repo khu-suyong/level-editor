@@ -15,8 +15,8 @@ importers:
         specifier: 0.16.1
         version: 0.16.1(solid-js@1.9.12)
       '@suis-ui/kit':
-        specifier: 0.2.0
-        version: 0.2.0(solid-js@1.9.12)
+        specifier: 0.3.1
+        version: 0.3.1(solid-js@1.9.12)
       '@vanilla-extract/css':
         specifier: 1.20.1
         version: 1.20.1
@@ -528,13 +528,13 @@ packages:
     peerDependencies:
       solid-js: ^1.8.6
 
-  '@suis-ui/kit@0.2.0':
-    resolution: {integrity: sha512-vz60imyyLIrbk49VR0EYxqj4HPABQP+iml2Rrv1Gl42A+pBh+WxI0LTOdOeG6uKA1s2cREHBA2ShOR6mnGfa1A==}
+  '@suis-ui/kit@0.3.1':
+    resolution: {integrity: sha512-e7vhI6+Cs+XlJCCkwe5DPl8JoWfZllr5ufMGtvMmtwkL8Xw8cjAIm1PocjPS/+dPAJEUN5wm82xlt8mS3y01iA==}
     peerDependencies:
       solid-js: ^1.6.0
 
-  '@suis-ui/primitives@0.1.1':
-    resolution: {integrity: sha512-b66FM3OG6vBYAOQwypQdBLmW8dXjwxVTBhuvi92y9sws2m1tiRefo7fhHTlq64D7KEbZDAlAxn5/PlaNircpGQ==}
+  '@suis-ui/primitives@0.1.2':
+    resolution: {integrity: sha512-I/wazHA2EsXiuhUdM8Fcyb/3eBwT6XkAZtEseQN6m83FjbzS8yoxppG0YjR7QGwG9tL+nOFSnKBt/PN4dZXxTA==}
     peerDependencies:
       solid-js: ^1.6.0
 
@@ -1434,10 +1434,10 @@ snapshots:
     dependencies:
       solid-js: 1.9.12
 
-  '@suis-ui/kit@0.2.0(solid-js@1.9.12)':
+  '@suis-ui/kit@0.3.1(solid-js@1.9.12)':
     dependencies:
       '@floating-ui/dom': 1.7.5
-      '@suis-ui/primitives': 0.1.1(solid-js@1.9.12)
+      '@suis-ui/primitives': 0.1.2(solid-js@1.9.12)
       '@vanilla-extract/css': 1.18.0
       '@vanilla-extract/dynamic': 2.1.5
       '@vanilla-extract/recipes': 0.5.7(@vanilla-extract/css@1.18.0)
@@ -1446,7 +1446,7 @@ snapshots:
     transitivePeerDependencies:
       - babel-plugin-macros
 
-  '@suis-ui/primitives@0.1.1(solid-js@1.9.12)':
+  '@suis-ui/primitives@0.1.2(solid-js@1.9.12)':
     dependencies:
       '@floating-ui/dom': 1.7.5
       solid-js: 1.9.12

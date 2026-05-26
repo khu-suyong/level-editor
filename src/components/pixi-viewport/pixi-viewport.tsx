@@ -34,6 +34,7 @@ export const PixiViewport = (props: PixiViewportProps) => {
   });
   const [dragDelta, setDragDelta] = createSignal<Cell | null>(null);
   const [erasePreviewCells, setErasePreviewCells] = createSignal<Cell[]>([]);
+  const [layerDragDelta, setLayerDragDelta] = createSignal<Cell | null>(null);
   const [paintPreviewCells, setPaintPreviewCells] = createSignal<Cell[]>([]);
   const [selectionRect, setSelectionRect] = createSignal<SelectionRect | null>(
     null,
@@ -43,6 +44,7 @@ export const PixiViewport = (props: PixiViewportProps) => {
 
   const activeLayerId = () => editor().activeLayerId;
   const clipboard = () => editor().clipboard;
+  const selectedLayerId = () => editor().selectedLayerId;
   const selectedTool = () => editor().selectedTool;
   const selection = () => editor().selection;
   const snapshot = () => props.snapshot;
@@ -83,7 +85,9 @@ export const PixiViewport = (props: PixiViewportProps) => {
     erasePreviewCells,
     getHost,
     hoverCell,
+    layerDragDelta,
     paintPreviewCells,
+    selectedLayerId,
     selectedTool,
     selection,
     selectionRect,
@@ -98,12 +102,14 @@ export const PixiViewport = (props: PixiViewportProps) => {
     hoverCell,
     scene: sceneApi.scene,
     sceneApi,
+    selectedLayerId,
     selectedTool,
     selection,
     setContextMenu,
     setDragDelta,
     setErasePreviewCells,
     setHoverCell,
+    setLayerDragDelta,
     setIsMovingSelection,
     setIsPanning,
     setPaintPreviewCells,
