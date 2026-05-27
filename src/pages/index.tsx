@@ -1,7 +1,10 @@
 import { useStore } from '@nanostores/solid';
-import { Box } from '@suis-ui/kit';
-import { createEffect, onCleanup, onMount } from 'solid-js';
+import { Box, Button } from '@suis-ui/kit';
+import { createMutation } from '@tanstack/solid-query';
+import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 
+import { uploadRecognitionImage } from '@/api/recognitions';
+import { Dialog } from '@/components/ui/dialog';
 import { PixiViewport } from '../components/pixi-viewport';
 import type { LevelData, RecognitionPayload } from '../models/level';
 import {
@@ -32,6 +35,7 @@ import {
 } from '../stores/layers';
 import { insertRecognitionLayer } from '../stores/recognition';
 import { PropertyPanel } from './_components/property-panel';
+import { RecognitionResultDialog } from './_components/recognition-result-dialog';
 import { SidePanel } from './_components/side-panel';
 import { ToolPanel } from './_components/tool-panel';
 import * as styles from './index.css';
@@ -85,7 +89,37 @@ export default function HomePage() {
   const snapshot = useStore(currentSnapshot);
   const undoAvailable = useStore(canUndo);
   const redoAvailable = useStore(canRedo);
+  const [recognitionPayloads, setRecognitionPayloads] = createSignal<
+    RecognitionPayload[]
+  >([]);
+  const [selectedRecognitionIndex, setSelectedRecognitionIndex] = createSignal<
+    number | null
+  >(null);
+  const [recognitionResultsOpen, setRecognitionResultsOpen] =
+    createSignal(false);
+  const [recognitionApiError, setRecognitionApiError] = createSignal<
+    string | null
+  >(null);
   const level = () => snapshot() ?? defaultLevel;
+  const recognitionUploadMutation = createMutation<
+    RecognitionPayload[],
+    Error,
+    File
+  >(() => ({
+    mutationFn: uploadRecognitionImage,
+    onMutate: () => {
+      setRecognitionApiError(null);
+      setRecognitionResultsOpen(false);
+    },
+    onSuccess: (payloads) => {
+      setRecognitionPayloads(payloads);
+      setSelectedRecognitionIndex(payloads.length > 0 ? 0 : null);
+      setRecognitionResultsOpen(true);
+    },
+    onError: (error) => {
+      setRecognitionApiError(error.message);
+    },
+  }));
   const handleUndo = () => {
     undoHistory();
     setSelection([]);
@@ -162,6 +196,15 @@ export default function HomePage() {
     setSelection([]);
 
     return layerId;
+  };
+  const handleImportRecognitionImage = (file: File) => {
+    recognitionUploadMutation.mutate(file);
+  };
+  const handleCloseRecognitionResults = () => {
+    setRecognitionResultsOpen(false);
+  };
+  const handleCloseRecognitionApiError = () => {
+    setRecognitionApiError(null);
   };
 
   createEffect(() => {
@@ -260,7 +303,9 @@ export default function HomePage() {
       <ToolPanel
         canUndo={undoAvailable()}
         canRedo={redoAvailable()}
+        recognitionImportPending={recognitionUploadMutation.isPending}
         selectedBrushTileId={editor().selectedBrushTileId}
+        onImportRecognitionImage={handleImportRecognitionImage}
         onUndo={handleUndo}
         onRedo={handleRedo}
         selectedTool={editor().selectedTool}
@@ -268,11 +313,28 @@ export default function HomePage() {
         onSelectBrushTile={setSelectedBrushTileId}
         onSelectTool={setSelectedTool}
       />
-      <PropertyPanel
-        zoom={editor().zoom}
-        onZoomChange={setZoom}
-        onInsertRecognitionPayload={handleInsertRecognitionPayload}
+      <PropertyPanel zoom={editor().zoom} onZoomChange={setZoom} />
+      <RecognitionResultDialog
+        open={recognitionResultsOpen()}
+        payloads={recognitionPayloads()}
+        selectedIndex={selectedRecognitionIndex()}
+        onClose={handleCloseRecognitionResults}
+        onInsertPayload={handleInsertRecognitionPayload}
+        onSelectIndex={setSelectedRecognitionIndex}
       />
+      <Dialog
+        open={Boolean(recognitionApiError())}
+        title={'인식 API 실패'}
+        description={recognitionApiError() ?? undefined}
+        onClose={handleCloseRecognitionApiError}
+        footer={
+          <Button variant={'primary'} onClick={handleCloseRecognitionApiError}>
+            {'확인'}
+          </Button>
+        }
+      >
+        <Box text={'body'}>{'이미지 인식 데이터를 가져오지 못했습니다.'}</Box>
+      </Dialog>
     </Box>
   );
 }

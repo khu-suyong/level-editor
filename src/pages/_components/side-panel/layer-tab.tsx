@@ -1,9 +1,11 @@
-import { Box, Button, CheckBox, Item, Tooltip } from '@suis-ui/kit';
+import { Box, Button, CheckBox, Item, Popup, Tooltip } from '@suis-ui/kit';
 import {
   ArrowDown,
   ArrowUp,
   ChevronDown,
   ChevronUp,
+  EllipsisVertical,
+  MoreVertical,
   Plus,
   Square,
   Trash2,
@@ -13,6 +15,7 @@ import { createMemo, createSignal, For, Show } from 'solid-js';
 import { Dialog } from '@/components/ui/dialog';
 import type { IconType } from '@/components/ui/icon';
 import { Icon } from '@/components/ui/icon';
+import { MenuButton } from '@/components/ui/menu-button';
 import type { LevelData, LevelLayer, TileMapping } from '@/models/level';
 import type { LayerMoveDirection } from '@/stores/layers';
 import { sortLayersForDisplay } from '@/stores/layers';
@@ -56,9 +59,14 @@ export const LayerTab = (props: LayerTabProps) => {
         size={'sm'}
         title={'Layers'}
         action={
-          <Button variant={'primary'} size={'sm'} onClick={props.onAddLayer}>
+          <Button
+            variant={'ghost'}
+            type={'icon'}
+            size={'xs'}
+            r={'lg'}
+            onClick={props.onAddLayer}
+          >
             <Icon name={Plus} />
-            {'Add Layer'}
           </Button>
         }
       />
@@ -167,10 +175,8 @@ const LayerItem = (props: LayerItemProps) => {
   );
   const getTileName = (tileId: number) =>
     tileNameById().get(tileId) ?? createDefaultTileName(tileId);
-  const handleClick = () => {
-    props.onSelectActiveLayer(props.layer.id);
-    setExpand((prev) => !prev);
-  };
+  // const handleClick = () => {
+  // };
 
   return (
     <Box as={'li'}>
@@ -179,18 +185,35 @@ const LayerItem = (props: LayerItemProps) => {
           as={Button}
           flex
           variant={'ghost'}
-          active={props.activeLayerId === props.layer.id}
+          active={props.selectedLayerId === props.layer.id}
+          onClick={() =>
+            props.onSelectLayerRect(
+              props.layer.id,
+              props.selectedLayerId !== props.layer.id,
+            )
+          }
           media={
-            <Box
-              as={'span'}
-              onClick={(event: MouseEvent) => event.stopPropagation()}
-            >
-              <CheckBox
-                checked={props.selectedLayerId === props.layer.id}
-                onChecked={(checked) =>
-                  props.onSelectLayerRect(props.layer.id, checked)
-                }
-              />
+            <Box direction={'row'} align={'center'} gap={'xxs'}>
+              <Box>
+                <Button
+                  variant={'ghost'}
+                  type={'icon'}
+                  size={'xs'}
+                  disabled={!props.canMoveUp}
+                  onClick={() => props.onMoveLayer(props.layer.id, 'up')}
+                >
+                  <Icon name={ChevronUp} size={12} />
+                </Button>
+                <Button
+                  variant={'ghost'}
+                  type={'icon'}
+                  size={'xs'}
+                  disabled={!props.canMoveDown}
+                  onClick={() => props.onMoveLayer(props.layer.id, 'down')}
+                >
+                  <Icon name={ChevronDown} size={12} />
+                </Button>
+              </Box>
             </Box>
           }
           title={
@@ -201,34 +224,45 @@ const LayerItem = (props: LayerItemProps) => {
               gap={'xs'}
             >
               <Box as={'span'}>{props.layer.name}</Box>
-              <Box as={'span'} text={'caption'} c={'text.caption'}>
-                {props.layer.id}
-              </Box>
             </Box>
           }
-          action={<Icon name={expand() ? ChevronUp : ChevronDown} />}
-          onClick={handleClick}
+          description={props.layer.id}
+          action={
+            <Box direction={'row'} align={'center'} gap={'xxs'}>
+              <Button
+                variant={'ghost'}
+                type={'icon'}
+                size={'xs'}
+                r={'sm'}
+                onClick={(event) => {
+                  props.onSelectActiveLayer(props.layer.id);
+                  setExpand((prev) => !prev);
+                  event.stopPropagation();
+                }}
+              >
+                <Icon name={expand() ? ChevronUp : ChevronDown} />
+              </Button>
+              <MenuButton
+                variant={'ghost'}
+                type={'icon'}
+                size={'xs'}
+                r={'sm'}
+                items={[
+                  {
+                    label: '레이어 삭제',
+                    icon: Trash2,
+                    onClick: () => props.onDeleteLayer(props.layer.id),
+                  },
+                ]}
+                onClick={(event) => {
+                  event.stopPropagation();
+                }}
+              >
+                <Icon name={EllipsisVertical} />
+              </MenuButton>
+            </Box>
+          }
         />
-        <Box direction={'row'} gap={'xxs'}>
-          <LayerActionButton
-            icon={ArrowUp}
-            label={`Move ${props.layer.name} up`}
-            disabled={!props.canMoveUp}
-            onClick={() => props.onMoveLayer(props.layer.id, 'up')}
-          />
-          <LayerActionButton
-            icon={ArrowDown}
-            label={`Move ${props.layer.name} down`}
-            disabled={!props.canMoveDown}
-            onClick={() => props.onMoveLayer(props.layer.id, 'down')}
-          />
-          <LayerActionButton
-            icon={Trash2}
-            label={`Delete ${props.layer.name}`}
-            disabled={props.disabledDelete}
-            onClick={() => props.onDeleteLayer(props.layer.id)}
-          />
-        </Box>
       </Box>
       <Show when={expand()}>
         <Box as={'ul'} pl={'md'}>

@@ -1,4 +1,5 @@
 import { ThemeProvider } from '@suis-ui/kit';
+import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { render } from 'solid-js/web';
 
 import { App } from './app';
@@ -7,6 +8,7 @@ import '@suis-ui/kit/style.css';
 import './styles/global.css';
 
 const root = document.getElementById('root');
+const queryClient = new QueryClient();
 
 if (!root) {
   throw new Error('Root element was not found.');
@@ -14,9 +16,11 @@ if (!root) {
 
 render(
   () => (
-    <ThemeProvider>
-      <App />
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
+    </QueryClientProvider>
   ),
   root,
 );

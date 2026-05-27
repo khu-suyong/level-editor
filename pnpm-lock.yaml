@@ -20,6 +20,9 @@ importers:
       '@suis-ui/primitives':
         specifier: 0.1.2
         version: 0.1.2(solid-js@1.9.12)
+      '@tanstack/solid-query':
+        specifier: 5.100.14
+        version: 5.100.14(solid-js@1.9.12)
       '@vanilla-extract/css':
         specifier: 1.20.1
         version: 1.20.1
@@ -538,6 +541,14 @@ packages:
 
   '@suis-ui/primitives@0.1.2':
     resolution: {integrity: sha512-I/wazHA2EsXiuhUdM8Fcyb/3eBwT6XkAZtEseQN6m83FjbzS8yoxppG0YjR7QGwG9tL+nOFSnKBt/PN4dZXxTA==}
+    peerDependencies:
+      solid-js: ^1.6.0
+
+  '@tanstack/query-core@5.100.14':
+    resolution: {integrity: sha512-5X41dGpxgeaHISCRW2oYwcSycZeULZzAunaudXT9ov1KOTj9xwt0CH6hbwqP1/z74ZWF7rYFnDpyYH07XFcZew==}
+
+  '@tanstack/solid-query@5.100.14':
+    resolution: {integrity: sha512-eKW5fPWuNjGBjK9To/DNNS2b3HwTvD58T6CZbN6H0HyCjDrBOlH8q4qyJQS9gR9EXflSiivgQK+DUzg3KIHNDw==}
     peerDependencies:
       solid-js: ^1.6.0
 
@@ -1454,6 +1465,13 @@ snapshots:
       '@floating-ui/dom': 1.7.5
       solid-js: 1.9.12
       tabbable: 6.4.0
+
+  '@tanstack/query-core@5.100.14': {}
+
+  '@tanstack/solid-query@5.100.14(solid-js@1.9.12)':
+    dependencies:
+      '@tanstack/query-core': 5.100.14
+      solid-js: 1.9.12
 
   '@tybys/wasm-util@0.10.1':
     dependencies:

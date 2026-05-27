@@ -4,10 +4,11 @@ import {
   Hand,
   MousePointer2,
   Paintbrush,
+  Plus,
   Redo2,
   Undo2,
 } from 'lucide-solid';
-import { For } from 'solid-js';
+import { For, type JSX } from 'solid-js';
 
 import { Icon, type IconType } from '@/components/ui/icon';
 import type { TileMapping } from '@/models/level';
@@ -30,10 +31,12 @@ const tools = [
 type ToolPanelProps = {
   canRedo: boolean;
   canUndo: boolean;
+  recognitionImportPending: boolean;
   selectedBrushTileId: number;
   onRedo: () => void;
   selectedTool: EditorTool;
   tileTable: TileMapping[];
+  onImportRecognitionImage: (file: File) => void;
   onUndo: () => void;
   onSelectBrushTile: (tileId: number) => void;
   onSelectTool: (selectedTool: EditorTool) => void;
@@ -72,8 +75,38 @@ const ToolbarIconButton = (props: ToolbarIconButtonProps) => (
 );
 
 export function ToolPanel(props: ToolPanelProps) {
+  let recognitionImageInput: HTMLInputElement | undefined;
+  const handleOpenRecognitionImageInput = () => {
+    recognitionImageInput?.click();
+  };
+  const handleRecognitionImageChange: JSX.EventHandler<
+    HTMLInputElement,
+    Event
+  > = (event) => {
+    const file = event.currentTarget.files?.[0] ?? null;
+
+    event.currentTarget.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    props.onImportRecognitionImage(file);
+  };
+
   return (
     <Box as={'aside'} class={styles.containerStyle}>
+      <input
+        ref={(element) => {
+          recognitionImageInput = element;
+        }}
+        type={'file'}
+        accept={'image/*'}
+        aria-label={'Recognition image file'}
+        hidden
+        onChange={handleRecognitionImageChange}
+      />
+
       <Box
         class={styles.groupStyle}
         direction={'row'}
@@ -89,13 +122,13 @@ export function ToolPanel(props: ToolPanelProps) {
         <Box direction={'row'} aria-label={'History actions'}>
           <ToolbarIconButton
             icon={Undo2}
-            label={'Undo'}
+            label={'실행 취소'}
             disabled={!props.canUndo}
             onClick={props.onUndo}
           />
           <ToolbarIconButton
             icon={Redo2}
-            label={'Redo'}
+            label={'다시 실행'}
             disabled={!props.canRedo}
             onClick={props.onRedo}
           />
@@ -112,9 +145,29 @@ export function ToolPanel(props: ToolPanelProps) {
         bc={'surface.higher'}
         bd={'thin'}
         shadow={'md'}
-        aria-label={'Editor toolbar'}
+        aria-label={'이미지 인식'}
       >
-        <Box direction={'row'} aria-label={'Editor modes'}>
+        <ToolbarIconButton
+          icon={Plus}
+          label={'이미지 인식'}
+          disabled={props.recognitionImportPending}
+          onClick={handleOpenRecognitionImageInput}
+        />
+      </Box>
+
+      <Box
+        class={styles.groupStyle}
+        direction={'row'}
+        p={'xs'}
+        gap={'sm'}
+        r={'md'}
+        bg={'surface.high'}
+        bc={'surface.higher'}
+        bd={'thin'}
+        shadow={'md'}
+        aria-label={'에디터 도구 모음'}
+      >
+        <Box direction={'row'} aria-label={'에디터 모드'}>
           <For each={tools}>
             {(tool) => (
               <ToolbarIconButton
@@ -138,9 +191,9 @@ export function ToolPanel(props: ToolPanelProps) {
         bc={'surface.higher'}
         bd={'thin'}
         shadow={'md'}
-        aria-label={'Brush tile picker'}
+        aria-label={'브러시 타일 선택기'}
       >
-        <Box direction={'row'} aria-label={'Brush tiles'}>
+        <Box direction={'row'} aria-label={'브러시 타일'}>
           <For each={props.tileTable}>
             {(tile) => (
               <Tooltip
@@ -149,19 +202,19 @@ export function ToolPanel(props: ToolPanelProps) {
                 withArrow
                 offset={12}
               >
-                <Box as={'span'} direction={'row'}>
-                  <Button
-                    variant={'ghost'}
-                    size={'md'}
-                    p={'sm'}
-                    type={'icon'}
-                    active={props.selectedBrushTileId === tile.tileId}
-                    aria-label={`Use ${getTileDisplayName(tile)} brush`}
-                    onClick={() => props.onSelectBrushTile(tile.tileId)}
-                  >
-                    <TilePreview tile={tile} size={18} />
-                  </Button>
-                </Box>
+                <Button
+                  variant={'ghost'}
+                  size={'md'}
+                  p={'none'}
+                  type={'icon'}
+                  aria-label={`Use ${getTileDisplayName(tile)} brush`}
+                  onClick={() => props.onSelectBrushTile(tile.tileId)}
+                  style={{
+                    opacity: props.selectedBrushTileId !== tile.tileId ? 0.25 : 1,
+                  }}
+                >
+                  <TilePreview tile={tile} size={16} />
+                </Button>
               </Tooltip>
             )}
           </For>
