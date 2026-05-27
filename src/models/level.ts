@@ -1,8 +1,10 @@
 import { z } from 'zod';
 
 const nonEmptyStringSchema = z.string().min(1);
+const tileNameSchema = z.string().trim().min(1);
 const finiteNumberSchema = z.number().finite();
 const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/u);
+const normalizeTileNameKey = (name: string) => name.trim().toLowerCase();
 
 export const TileIconSchema = z.enum([
   'star',
@@ -45,6 +47,7 @@ export const TileSourceSchema = RecognitionTileSourceSchema;
 export type TileMapping = z.infer<typeof TileMappingSchema>;
 export const TileMappingSchema = z.object({
   tileId: z.number().int().nonnegative(),
+  name: tileNameSchema,
   backgroundColor: hexColorSchema,
   icon: TileIconSchema,
   iconColor: hexColorSchema,
@@ -113,6 +116,7 @@ export const LevelDataSchema = z
   })
   .superRefine((levelData, context) => {
     const tileIds = new Set<number>();
+    const tileNames = new Set<string>();
     const cvShapes = new Set<CvShape>();
     const layerIds = new Set<string>();
     const layerOrders = new Set<number>();
@@ -127,6 +131,18 @@ export const LevelDataSchema = z
       }
 
       tileIds.add(tileMapping.tileId);
+
+      const tileName = normalizeTileNameKey(tileMapping.name);
+
+      if (tileName && tileNames.has(tileName)) {
+        context.addIssue({
+          code: 'custom',
+          message: 'tileTable name values must be unique.',
+          path: ['tileTable', tileIndex, 'name'],
+        });
+      }
+
+      tileNames.add(tileName);
 
       for (const [shapeIndex, cvShape] of tileMapping.cvShapes.entries()) {
         if (cvShapes.has(cvShape)) {

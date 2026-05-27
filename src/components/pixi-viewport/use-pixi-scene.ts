@@ -45,6 +45,7 @@ const LAYER_BOUNDS_COLOR = 0x10b981;
 
 const fallbackTile: TileMapping = {
   tileId: 0,
+  name: 'Tile 0',
   backgroundColor: '#2563eb',
   icon: 'star',
   iconColor: '#f8fafc',

@@ -34,6 +34,7 @@ const defaultLevel: LevelData = {
   tileTable: [
     {
       tileId: 0,
+      name: 'Tile 0',
       backgroundColor: '#2563eb',
       icon: 'star',
       iconColor: '#f8fafc',

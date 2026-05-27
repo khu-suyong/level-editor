@@ -54,9 +54,40 @@ export const field = style({
   gap: vars.size.space.xxs,
 });
 
+export const wideField = style({
+  gridColumn: '1 / -1',
+});
+
+export const colorControl = style({
+  display: 'grid',
+  gridTemplateColumns: `${vars.size.space.xl} ${vars.size.space.xl} 1fr`,
+  gap: vars.size.space.xs,
+  alignItems: 'center',
+});
+
 export const colorInput = style({
+  width: vars.size.space.xl,
   minHeight: vars.size.space.xl,
-  padding: vars.size.space.xxs,
+  padding: 0,
+  overflow: 'hidden',
+});
+
+export const colorSwatch = style({
+  display: 'block',
+  width: vars.size.space.xl,
+  height: vars.size.space.xl,
+  border: `1px solid ${vars.color.surface.higher}`,
+  borderRadius: vars.size.space.xxs,
+  boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${vars.color.surface.main} 45%, transparent)`,
+});
+
+export const colorValue = style({
+  overflow: 'hidden',
+  color: vars.color.text.caption,
+  fontFamily:
+    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
 });
 
 export const shapeRow = style({

@@ -10,9 +10,10 @@ import {
 import { For } from 'solid-js';
 
 import { Icon, type IconType } from '@/components/ui/icon';
-import { TilePreview } from '@/components/ui/tile-preview';
 import type { TileMapping } from '@/models/level';
+import { TilePreview } from '@/pages/_components/tile-preview';
 import type { EditorTool } from '@/stores/editor';
+import { getTileDisplayName } from '@/stores/palette';
 import * as styles from './tool-panel.css';
 
 const tools = [
@@ -143,7 +144,7 @@ export function ToolPanel(props: ToolPanelProps) {
           <For each={props.tileTable}>
             {(tile) => (
               <Tooltip
-                content={<Box text={'caption'}>{`Tile ${tile.tileId}`}</Box>}
+                content={<Box text={'caption'}>{getTileDisplayName(tile)}</Box>}
                 placement={'top'}
                 withArrow
                 offset={12}
@@ -155,7 +156,7 @@ export function ToolPanel(props: ToolPanelProps) {
                     p={'sm'}
                     type={'icon'}
                     active={props.selectedBrushTileId === tile.tileId}
-                    aria-label={`Use tile ${tile.tileId} brush`}
+                    aria-label={`Use ${getTileDisplayName(tile)} brush`}
                     onClick={() => props.onSelectBrushTile(tile.tileId)}
                   >
                     <TilePreview tile={tile} size={18} />

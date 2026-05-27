@@ -3,7 +3,8 @@ import { ChevronDown, ChevronUp, Square } from 'lucide-solid';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 
 import { Icon } from '@/components/ui/icon';
-import type { LevelData, LevelLayer } from '@/models/level';
+import type { LevelData, LevelLayer, TileMapping } from '@/models/level';
+import { createDefaultTileName, getTileDisplayName } from '@/stores/palette';
 import * as styles from './side-panel.css';
 
 type LayerTabProps = {
@@ -30,6 +31,7 @@ export const LayerTab = (props: LayerTabProps) => {
           {(layer) => (
             <LayerItem
               layer={layer}
+              tileTable={props.level.tileTable}
               activeLayerId={props.activeLayerId}
               selectedLayerId={props.selectedLayerId}
               onSelectActiveLayer={props.onSelectActiveLayer}
@@ -44,6 +46,7 @@ export const LayerTab = (props: LayerTabProps) => {
 
 type LayerItemProps = {
   layer: LevelLayer;
+  tileTable: TileMapping[];
   activeLayerId?: string;
   selectedLayerId?: string | null;
   onSelectActiveLayer: (layerId: string) => void;
@@ -52,6 +55,14 @@ type LayerItemProps = {
 
 const LayerItem = (props: LayerItemProps) => {
   const [expand, setExpand] = createSignal(false);
+  const tileNameById = createMemo(
+    () =>
+      new Map(
+        props.tileTable.map((tile) => [tile.tileId, getTileDisplayName(tile)]),
+      ),
+  );
+  const getTileName = (tileId: number) =>
+    tileNameById().get(tileId) ?? createDefaultTileName(tileId);
   const handleClick = () => {
     props.onSelectActiveLayer(props.layer.id);
     setExpand((prev) => !prev);
@@ -104,12 +115,12 @@ const LayerItem = (props: LayerItemProps) => {
                     align={'center'}
                     gap={'xs'}
                   >
-                    <Box as={'span'}>{`Tile ${tile.tileId}`}</Box>
+                    <Box as={'span'}>{getTileName(tile.tileId)}</Box>
                     <Box
                       as={'span'}
                       text={'caption'}
                       c={'text.caption'}
-                    >{`${tile.x}, ${tile.y}`}</Box>
+                    >{`#${tile.tileId} / ${tile.x}, ${tile.y}`}</Box>
                   </Box>
                 }
                 justify={'flex-start'}

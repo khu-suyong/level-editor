@@ -8,7 +8,7 @@ This document is for AI agents working in this repository. It is not a user-faci
 - The UI is built with SolidJS components, and shared editor state uses `nanostores`.
 - Canvas rendering is handled by PixiJS. Create, resize, and destroy PixiJS objects inside SolidJS lifecycle hooks.
 - Styling uses `@vanilla-extract/css` and `@vanilla-extract/recipes`.
-- `docs/SUIS_UI_GUIDE.md` is the source of truth for using `@suis-ui/kit`.
+- `https://su-yong.github.io/suis` is the source of truth for using `@suis-ui/kit`.
 
 ## Development Commands
 

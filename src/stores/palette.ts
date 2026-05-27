@@ -31,6 +31,17 @@ export const TILE_ICON_PRESETS = [
 
 export const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/u;
 
+export const createDefaultTileName = (tileId: number) => `Tile ${tileId}`;
+
+export const normalizeTileName = (value: string) => value.trim();
+
+export const getTileNameKey = (value: string) =>
+  normalizeTileName(value).toLowerCase();
+
+export const getTileDisplayName = (
+  tile: Pick<TileMapping, 'name' | 'tileId'>,
+) => normalizeTileName(tile.name) || createDefaultTileName(tile.tileId);
+
 const backgroundColors = [
   '#2563eb',
   '#059669',
@@ -70,6 +81,11 @@ const cloneLayer = (layer: LevelLayer): LevelLayer => ({
 export const clonePaletteTile = (tile: TileMapping): TileMapping => ({
   ...tile,
   cvShapes: [...tile.cvShapes],
+});
+
+export const normalizePaletteTile = (tile: TileMapping): TileMapping => ({
+  ...clonePaletteTile(tile),
+  name: normalizeTileName(tile.name),
 });
 
 export const cloneLevelData = (level: LevelData): LevelData => ({
@@ -117,17 +133,23 @@ export const cvShapeMappingStore = computed(currentSnapshot, (snapshot) =>
 export const createRandomPaletteTile = (
   tileTable: readonly TileMapping[],
   cvShapes: CvShape[] = [],
-): TileMapping => ({
-  tileId: getNextTileId(tileTable),
-  backgroundColor: randomItem(backgroundColors),
-  icon: randomItem(TILE_ICON_PRESETS),
-  iconColor: randomItem(iconColors),
-  cvShapes: [...cvShapes],
-});
+): TileMapping => {
+  const tileId = getNextTileId(tileTable);
+
+  return {
+    tileId,
+    name: createDefaultTileName(tileId),
+    backgroundColor: randomItem(backgroundColors),
+    icon: randomItem(TILE_ICON_PRESETS),
+    iconColor: randomItem(iconColors),
+    cvShapes: [...cvShapes],
+  };
+};
 
 export const validatePaletteTiles = (tileTable: readonly TileMapping[]) => {
   const errors: string[] = [];
   const tileIds = new Set<number>();
+  const tileNames = new Set<string>();
   const cvShapes = new Set<CvShape>();
 
   for (const tile of tileTable) {
@@ -140,6 +162,19 @@ export const validatePaletteTiles = (tileTable: readonly TileMapping[]) => {
     }
 
     tileIds.add(tile.tileId);
+
+    const tileName = normalizeTileName(tile.name);
+    const tileNameKey = getTileNameKey(tile.name);
+
+    if (!tileName) {
+      errors.push('Tile name is required.');
+    }
+
+    if (tileNameKey && tileNames.has(tileNameKey)) {
+      errors.push(`Tile name ${tileName} is already used.`);
+    }
+
+    tileNames.add(tileNameKey);
 
     if (!isHexColor(tile.backgroundColor)) {
       errors.push('Background color must be a #RRGGBB value.');
@@ -172,10 +207,13 @@ export const validatePaletteTileUpdate = (
 ) => {
   const nextTileTable =
     originalTileId === null
-      ? [...level.tileTable.map(clonePaletteTile), clonePaletteTile(nextTile)]
+      ? [
+          ...level.tileTable.map(clonePaletteTile),
+          normalizePaletteTile(nextTile),
+        ]
       : level.tileTable.map((tile) =>
           tile.tileId === originalTileId
-            ? clonePaletteTile(nextTile)
+            ? normalizePaletteTile(nextTile)
             : clonePaletteTile(tile),
         );
 
@@ -187,7 +225,7 @@ export const addPaletteTileToLevel = (
   tile: TileMapping,
 ): LevelData => ({
   ...cloneLevelData(level),
-  tileTable: sortPaletteTiles([...level.tileTable, clonePaletteTile(tile)]),
+  tileTable: sortPaletteTiles([...level.tileTable, normalizePaletteTile(tile)]),
 });
 
 export const updatePaletteTileInLevel = (
@@ -199,7 +237,7 @@ export const updatePaletteTileInLevel = (
   tileTable: sortPaletteTiles(
     level.tileTable.map((tile) =>
       tile.tileId === originalTileId
-        ? clonePaletteTile(nextTile)
+        ? normalizePaletteTile(nextTile)
         : clonePaletteTile(tile),
     ),
   ),
