@@ -12,7 +12,7 @@ import { createEffect, createMemo, createSignal, For } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { Dialog } from '@/components/ui/dialog';
 import { Icon } from '@/components/ui/icon';
-import { TileIconMap } from '@/helpers/constants';
+import { CvShapeIconMap, TileIconMap } from '@/helpers/constants';
 import type { CvShape, LevelData, TileIcon, TileMapping } from '@/models/level';
 import { TilePreview } from '@/pages/_components/tile-preview';
 import {
@@ -51,10 +51,7 @@ type ReplacementRenderValue = string | ReplacementOption;
 
 const iconOptions = [...TILE_ICON_PRESETS];
 
-const shapeOptions = CV_SHAPE_PRESETS.map((shape) => ({
-  value: shape,
-  label: shape,
-}));
+const shapeOptions = [...CV_SHAPE_PRESETS];
 
 const selectContentProps = { style: 'z-index: 1100' };
 
@@ -554,12 +551,9 @@ const PaletteTileDialog = (props: PaletteTileDialogProps) => {
                 }
                 data={shapeOptions}
                 contentProps={selectContentProps}
-                renderValue={(value: (typeof shapeOptions)[number]) => (
+                renderValue={(value: CvShape) => (
                   <Box direction={'row'} align={'center'} gap={'xs'}>
-                    <Dynamic
-                      component={TileIconMap[value as unknown as TileIcon]}
-                      size={16}
-                    />
+                    <Dynamic component={CvShapeIconMap[value]} size={16} />
                     <Box as={'span'}>{value}</Box>
                   </Box>
                 )}
@@ -569,7 +563,9 @@ const PaletteTileDialog = (props: PaletteTileDialogProps) => {
                     media={
                       <Dynamic
                         component={
-                          TileIconMap[(itemProps as { value: TileIcon }).value]
+                          CvShapeIconMap[
+                            (itemProps as { value: CvShape }).value
+                          ]
                         }
                         size={16}
                       />

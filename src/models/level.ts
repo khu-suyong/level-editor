@@ -17,12 +17,10 @@ export const TileIconSchema = z.enum([
 export type TileIcon = z.infer<typeof TileIconSchema>;
 
 export const CvShapeSchema = z.enum([
-  'star',
   'triangle',
+  'rectangle',
+  'circle',
   'line',
-  'door',
-  'window',
-  'stairs',
 ]);
 export type CvShape = z.infer<typeof CvShapeSchema>;
 
@@ -63,15 +61,6 @@ export const TilePlacementSchema = z.object({
   source: TileSourceSchema.optional(),
 });
 
-export type LevelLayer = z.infer<typeof LevelLayerSchema>;
-export const LevelLayerSchema = z.object({
-  id: nonEmptyStringSchema,
-  name: nonEmptyStringSchema,
-  order: z.number().int(),
-  bounds: LayerBoundsSchema.optional(),
-  tiles: TilePlacementSchema.array(),
-});
-
 export type RecognitionBinaryData = z.infer<typeof RecognitionBinaryDataSchema>;
 export const RecognitionBinaryDataSchema = z.object({
   encoding: z.literal('base64'),
@@ -84,6 +73,8 @@ export const RecognitionImageSchema = z.object({
   width: finiteNumberSchema.positive(),
   height: finiteNumberSchema.positive(),
   name: nonEmptyStringSchema.optional(),
+  src: nonEmptyStringSchema.optional(),
+  data: RecognitionBinaryDataSchema.optional(),
 });
 
 export type RecognizedObject = z.infer<typeof RecognizedObjectSchema>;
@@ -104,6 +95,28 @@ export const RecognitionPayloadSchema = z.object({
   name: nonEmptyStringSchema.optional(),
   image: RecognitionImageSchema,
   objects: RecognizedObjectSchema.array(),
+});
+
+export type RecognitionLayerSource = z.infer<
+  typeof RecognitionLayerSourceSchema
+>;
+export const RecognitionLayerSourceSchema = z.object({
+  type: z.literal('recognition'),
+  importId: nonEmptyStringSchema,
+  payload: RecognitionPayloadSchema,
+});
+
+export type LayerSource = z.infer<typeof LayerSourceSchema>;
+export const LayerSourceSchema = RecognitionLayerSourceSchema;
+
+export type LevelLayer = z.infer<typeof LevelLayerSchema>;
+export const LevelLayerSchema = z.object({
+  id: nonEmptyStringSchema,
+  name: nonEmptyStringSchema,
+  order: z.number().int(),
+  bounds: LayerBoundsSchema.optional(),
+  source: LayerSourceSchema.optional(),
+  tiles: TilePlacementSchema.array(),
 });
 
 export type LevelData = z.infer<typeof LevelDataSchema>;

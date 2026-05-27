@@ -18,6 +18,7 @@ import {
   resizeLayer as recordResizeLayer,
   replaceTiles,
 } from '@/stores/history';
+import { rebuildRecognitionLayerTiles } from '@/stores/recognition';
 
 import { DEFAULT_TILE_ID } from './constants';
 import {
@@ -340,7 +341,7 @@ export const usePixiEditorActions = ({
     setSelection([]);
   };
 
-  const resizeLayer = (layerId: string, endBounds: LayerBounds) => {
+  const resizeLayer = async (layerId: string, endBounds: LayerBounds) => {
     const layer = getLayer(layerId);
     const startBounds = getLayerResizeBounds(layerId);
 
@@ -348,12 +349,31 @@ export const usePixiEditorActions = ({
       return;
     }
 
+    const shouldRebuildFromImage = Boolean(
+      layer.source?.type === 'recognition' &&
+        (layer.source.payload.image.data || layer.source.payload.image.src),
+    );
+    let endTiles: TilePlacement[];
+
+    if (shouldRebuildFromImage) {
+      try {
+        endTiles =
+          (await rebuildRecognitionLayerTiles(snapshot(), layer, endBounds)) ??
+          [];
+      } catch (error) {
+        console.warn('Recognition image resize failed.', error);
+        return;
+      }
+    } else {
+      endTiles = resampleLayerTiles(layer.tiles, startBounds, endBounds);
+    }
+
     recordResizeLayer(
       layerId,
       layer.bounds ? { ...layer.bounds } : null,
       endBounds,
       layer.tiles,
-      resampleLayerTiles(layer.tiles, startBounds, endBounds),
+      endTiles,
     );
     setSelection([]);
   };

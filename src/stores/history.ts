@@ -5,6 +5,8 @@ import type {
   LayerBounds,
   LevelData,
   LevelLayer,
+  RecognitionBinaryData,
+  RecognitionPayload,
   TileMapping,
   TilePlacement,
 } from '@/models/level';
@@ -87,6 +89,26 @@ const coordinateKey = (cell: Cell) => `${cell.x},${cell.y}`;
 
 const cloneLayerBounds = (bounds: LayerBounds): LayerBounds => ({ ...bounds });
 
+const cloneRecognitionBinaryData = (
+  data: RecognitionBinaryData,
+): RecognitionBinaryData => ({ ...data });
+
+const cloneRecognitionPayload = (
+  payload: RecognitionPayload,
+): RecognitionPayload => ({
+  ...payload,
+  image: {
+    ...payload.image,
+    ...(payload.image.data
+      ? { data: cloneRecognitionBinaryData(payload.image.data) }
+      : {}),
+  },
+  objects: payload.objects.map((object) => ({
+    ...object,
+    ...(object.data ? { data: cloneRecognitionBinaryData(object.data) } : {}),
+  })),
+});
+
 const cloneTile = (tile: TilePlacement): TilePlacement => ({
   ...tile,
   ...(tile.source ? { source: { ...tile.source } } : {}),
@@ -100,6 +122,14 @@ const cloneTileMapping = (tileMapping: TileMapping): TileMapping => ({
 const cloneLayer = (layer: LevelLayer): LevelLayer => ({
   ...layer,
   ...(layer.bounds ? { bounds: cloneLayerBounds(layer.bounds) } : {}),
+  ...(layer.source
+    ? {
+        source: {
+          ...layer.source,
+          payload: cloneRecognitionPayload(layer.source.payload),
+        },
+      }
+    : {}),
   tiles: layer.tiles.map(cloneTile),
 });
 

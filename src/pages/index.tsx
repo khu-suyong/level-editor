@@ -22,6 +22,14 @@ import {
   replaceLevel,
   undoHistory,
 } from '../stores/history';
+import {
+  addEmptyLayerToBottom,
+  deleteLayerFromLevel,
+  getLayerDeleteFallbackId,
+  type LayerMoveDirection,
+  moveLayerInLevel,
+  sortLayersForDisplay,
+} from '../stores/layers';
 import { insertRecognitionLayer } from '../stores/recognition';
 import { PropertyPanel } from './_components/property-panel';
 import { SidePanel } from './_components/side-panel';
@@ -98,8 +106,50 @@ export default function HomePage() {
     replaceLevel(nextLevel);
     setSelection([]);
   };
-  const handleInsertRecognitionPayload = (payload: RecognitionPayload) => {
-    const layerId = insertRecognitionLayer(payload, {
+  const handleAddLayer = () => {
+    const result = addEmptyLayerToBottom(level());
+
+    replaceLevel(result.level);
+    setActiveLayerId(result.layer.id);
+    setSelectedLayerId(result.layer.id);
+    setSelection([]);
+  };
+  const handleMoveLayer = (layerId: string, direction: LayerMoveDirection) => {
+    const nextLevel = moveLayerInLevel(level(), layerId, direction);
+
+    if (!nextLevel) {
+      return;
+    }
+
+    replaceLevel(nextLevel);
+    setSelection([]);
+  };
+  const handleDeleteLayer = (layerId: string) => {
+    const currentLevel = level();
+    const currentEditor = editor();
+    const fallbackLayerId = getLayerDeleteFallbackId(currentLevel, layerId);
+    const nextLevel = deleteLayerFromLevel(currentLevel, layerId);
+
+    if (!nextLevel) {
+      return;
+    }
+
+    replaceLevel(nextLevel);
+
+    if (currentEditor.activeLayerId === layerId && fallbackLayerId) {
+      setActiveLayerId(fallbackLayerId);
+    }
+
+    if (currentEditor.selectedLayerId === layerId) {
+      setSelectedLayerId(fallbackLayerId);
+    }
+
+    setSelection([]);
+  };
+  const handleInsertRecognitionPayload = async (
+    payload: RecognitionPayload,
+  ) => {
+    const layerId = await insertRecognitionLayer(payload, {
       viewportWidth: window.innerWidth,
     });
 
@@ -125,6 +175,25 @@ export default function HomePage() {
       )
     ) {
       setSelectedBrushTileId(currentLevel.tileTable[0].tileId);
+    }
+  });
+
+  createEffect(() => {
+    const currentLevel = level();
+    const currentEditor = editor();
+    const layerIds = new Set(currentLevel.layers.map((layer) => layer.id));
+    const fallbackLayerId =
+      sortLayersForDisplay(currentLevel.layers)[0]?.id ?? null;
+
+    if (fallbackLayerId && !layerIds.has(currentEditor.activeLayerId)) {
+      setActiveLayerId(fallbackLayerId);
+    }
+
+    if (
+      currentEditor.selectedLayerId &&
+      !layerIds.has(currentEditor.selectedLayerId)
+    ) {
+      setSelectedLayerId(null);
     }
   });
 
@@ -181,6 +250,9 @@ export default function HomePage() {
         selectedLayerId={editor().selectedLayerId}
         level={level()}
         onApplyLevel={handleApplyLevel}
+        onAddLayer={handleAddLayer}
+        onDeleteLayer={handleDeleteLayer}
+        onMoveLayer={handleMoveLayer}
         onSelectActiveLayer={handleSelectLayer}
         onSelectBrushTile={setSelectedBrushTileId}
         onSelectLayerRect={handleSelectLayerRect}

@@ -481,7 +481,7 @@ export const usePixiViewportInput = ({
         return;
       }
 
-      actions.resizeLayer(
+      void actions.resizeLayer(
         dragState.layerId,
         getResizedLayerBounds(dragState.startBounds, dragState.handle, {
           x: cell.x - dragState.startCell.x,

@@ -11,17 +11,19 @@ import { createSignal } from 'solid-js';
 
 import { Icon } from '@/components/ui/icon';
 import { Slider } from '@/components/ui/slider';
+import { recognitionDebugSamples } from '@/helpers/dummy';
 import {
   type RecognitionPayload,
   RecognitionPayloadSchema,
 } from '@/models/level';
 import * as styles from './property-panel.css';
-import { recognitionDebugSamples } from './recognition-debug-samples';
 
 type PropertyPanelProps = {
   zoom: number;
   onZoomChange: (zoom: number) => void;
-  onInsertRecognitionPayload: (payload: RecognitionPayload) => string | null;
+  onInsertRecognitionPayload: (
+    payload: RecognitionPayload,
+  ) => Promise<string | null>;
 };
 
 const ZOOM_MIN = 25;
@@ -74,7 +76,7 @@ export function PropertyPanel(props: PropertyPanelProps) {
     setPayloadText(formatPayload(sample.payload));
     setDebugStatus(null);
   };
-  const handleInsertLayer = () => {
+  const handleInsertLayer = async () => {
     let parsedPayload: unknown;
 
     try {
@@ -101,7 +103,18 @@ export function PropertyPanel(props: PropertyPanelProps) {
       return;
     }
 
-    const layerId = props.onInsertRecognitionPayload(result.data);
+    let layerId: string | null;
+
+    try {
+      layerId = await props.onInsertRecognitionPayload(result.data);
+    } catch (error) {
+      setDebugStatus({
+        type: 'error',
+        message:
+          error instanceof Error ? error.message : 'Insert layer failed.',
+      });
+      return;
+    }
 
     if (!layerId) {
       setDebugStatus({

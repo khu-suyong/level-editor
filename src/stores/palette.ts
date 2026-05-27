@@ -4,6 +4,8 @@ import type {
   CvShape,
   LevelData,
   LevelLayer,
+  RecognitionBinaryData,
+  RecognitionPayload,
   TileIcon,
   TileMapping,
   TilePlacement,
@@ -12,12 +14,10 @@ import type {
 import { currentSnapshot } from './history';
 
 export const CV_SHAPE_PRESETS = [
-  'star',
   'triangle',
+  'rectangle',
+  'circle',
   'line',
-  'door',
-  'window',
-  'stairs',
 ] as const satisfies readonly CvShape[];
 
 export const TILE_ICON_PRESETS = [
@@ -72,9 +72,37 @@ const cloneTile = (tile: TilePlacement): TilePlacement => ({
   ...(tile.source ? { source: cloneTileSource(tile.source) } : {}),
 });
 
+const cloneRecognitionBinaryData = (
+  data: RecognitionBinaryData,
+): RecognitionBinaryData => ({ ...data });
+
+const cloneRecognitionPayload = (
+  payload: RecognitionPayload,
+): RecognitionPayload => ({
+  ...payload,
+  image: {
+    ...payload.image,
+    ...(payload.image.data
+      ? { data: cloneRecognitionBinaryData(payload.image.data) }
+      : {}),
+  },
+  objects: payload.objects.map((object) => ({
+    ...object,
+    ...(object.data ? { data: cloneRecognitionBinaryData(object.data) } : {}),
+  })),
+});
+
 const cloneLayer = (layer: LevelLayer): LevelLayer => ({
   ...layer,
   ...(layer.bounds ? { bounds: { ...layer.bounds } } : {}),
+  ...(layer.source
+    ? {
+        source: {
+          ...layer.source,
+          payload: cloneRecognitionPayload(layer.source.payload),
+        },
+      }
+    : {}),
   tiles: layer.tiles.map(cloneTile),
 });
 

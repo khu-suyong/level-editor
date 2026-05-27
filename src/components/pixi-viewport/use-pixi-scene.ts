@@ -1,5 +1,12 @@
 import Color from 'color';
-import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import {
+  Application,
+  Assets,
+  Container,
+  Graphics,
+  Sprite,
+  Texture,
+} from 'pixi.js';
 import type { Accessor } from 'solid-js';
 import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 
@@ -7,6 +14,7 @@ import type {
   Cell,
   LayerBounds,
   LevelData,
+  LevelLayer,
   TileMapping,
   TilePlacement,
 } from '@/models/level';
@@ -52,10 +60,17 @@ type UsePixiSceneParams = {
   zoom: Accessor<number>;
 };
 
+type RecognitionImageTextureState = {
+  failed: boolean;
+  loading: boolean;
+  texture: Texture | null;
+};
+
 const DEFAULT_VIEWPORT_BACKGROUND_COLOR = 0x101827;
 const DEFAULT_TILE_BACKGROUND_COLOR = 0x2563eb;
 const DEFAULT_TILE_ICON_COLOR = 0xf8fafc;
 const LAYER_BOUNDS_COLOR = 0x10b981;
+const RECOGNITION_IMAGE_RESIZE_ALPHA = 0.28;
 const LAYER_RESIZE_HANDLE_SIZE = 10;
 const LAYER_RESIZE_HANDLES: LayerResizeHandle[] = [
   'n',
@@ -233,6 +248,20 @@ const createRectSprite = (
   sprite.alpha = alpha;
 
   return sprite;
+};
+
+const getRecognitionImageSource = (layer: LevelLayer) => {
+  if (layer.source?.type !== 'recognition') {
+    return null;
+  }
+
+  const image = layer.source.payload.image;
+
+  if (image.data) {
+    return `data:${image.data.mimeType};base64,${image.data.value}`;
+  }
+
+  return image.src ?? null;
 };
 
 const drawTileIcon = (
@@ -470,6 +499,77 @@ export const usePixiScene = ({
   zoom,
 }: UsePixiSceneParams) => {
   const [scene, setScene] = createSignal<PixiScene | null>(null);
+  const recognitionImageTextureCache = new Map<
+    string,
+    RecognitionImageTextureState
+  >();
+  let isSceneDisposed = false;
+
+  const getRecognitionImageTexture = (source: string) => {
+    const cached = recognitionImageTextureCache.get(source);
+
+    if (cached) {
+      return cached.texture;
+    }
+
+    const state: RecognitionImageTextureState = {
+      failed: false,
+      loading: true,
+      texture: null,
+    };
+
+    recognitionImageTextureCache.set(source, state);
+
+    void Assets.load<Texture>(source)
+      .then((texture) => {
+        state.loading = false;
+        state.texture = texture;
+
+        const current = scene();
+
+        if (!isSceneDisposed && current) {
+          drawOverlay(current);
+        }
+      })
+      .catch((error) => {
+        state.failed = true;
+        state.loading = false;
+        console.warn('Recognition image overlay load failed.', error);
+      });
+
+    return null;
+  };
+
+  const drawRecognitionResizeImageOverlay = (
+    current: PixiScene,
+    layer: LevelLayer,
+    bounds: LayerBounds,
+  ) => {
+    const source = getRecognitionImageSource(layer);
+
+    if (!source) {
+      return;
+    }
+
+    const texture = getRecognitionImageTexture(source);
+
+    if (!texture) {
+      return;
+    }
+
+    const width = bounds.width * TILE_SIZE;
+    const height = bounds.height * TILE_SIZE;
+    const textureWidth = texture.width || 1;
+    const textureHeight = texture.height || 1;
+    const sprite = new Sprite(texture);
+
+    sprite.x = bounds.x * TILE_SIZE;
+    sprite.y = (bounds.y + bounds.height) * TILE_SIZE;
+    sprite.scale.set(width / textureWidth, -(height / textureHeight));
+    sprite.alpha = RECOGNITION_IMAGE_RESIZE_ALPHA;
+
+    current.overlay.addChild(sprite);
+  };
 
   const getHostPoint = (clientX: number, clientY: number) => {
     const bounds = getHost().getBoundingClientRect();
@@ -736,6 +836,10 @@ export const usePixiScene = ({
       ? offsetTileBounds(layerBounds, resizePreview ? null : layerDragDelta())
       : null;
 
+    if (selectedLayer && resizePreview) {
+      drawRecognitionResizeImageOverlay(current, selectedLayer, resizePreview);
+    }
+
     if (displayedLayerBounds) {
       const layerBoundsGraphic = new Graphics();
 
@@ -851,6 +955,9 @@ export const usePixiScene = ({
 
   onMount(() => {
     let disposed = false;
+
+    isSceneDisposed = false;
+
     const host = getHost();
     const app = new Application();
     const background = new Graphics();
@@ -908,6 +1015,8 @@ export const usePixiScene = ({
 
     onCleanup(() => {
       disposed = true;
+      isSceneDisposed = true;
+      recognitionImageTextureCache.clear();
       resizeObserver.disconnect();
       setCanvasReady(false);
       app.destroy(true);

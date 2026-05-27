@@ -4,6 +4,7 @@ import { createSignal, For, Show } from 'solid-js';
 
 import { Icon } from '@/components/ui/icon';
 import type { LevelData } from '@/models/level';
+import type { LayerMoveDirection } from '@/stores/layers';
 import { LayerTab } from './layer-tab';
 import { PaletteTab } from './palette-tab';
 import * as styles from './side-panel.css';
@@ -16,6 +17,9 @@ type SidePanelProps = {
   selectedLayerId: string | null;
   level: LevelData;
   onApplyLevel: (level: LevelData) => void;
+  onAddLayer: () => void;
+  onDeleteLayer: (layerId: string) => void;
+  onMoveLayer: (layerId: string, direction: LayerMoveDirection) => void;
   onSelectActiveLayer: (layerId: string) => void;
   onSelectBrushTile: (tileId: number) => void;
   onSelectLayerRect: (layerId: string, selected: boolean) => void;
@@ -78,6 +82,9 @@ export const SidePanel = (props: SidePanelProps) => {
             activeLayerId={props.activeLayerId}
             selectedLayerId={props.selectedLayerId}
             level={props.level}
+            onAddLayer={props.onAddLayer}
+            onDeleteLayer={props.onDeleteLayer}
+            onMoveLayer={props.onMoveLayer}
             onSelectActiveLayer={props.onSelectActiveLayer}
             onSelectLayerRect={props.onSelectLayerRect}
           />
