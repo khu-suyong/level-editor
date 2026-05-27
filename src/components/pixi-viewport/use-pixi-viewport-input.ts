@@ -1,13 +1,14 @@
 import type { Accessor, Setter } from 'solid-js';
 import { onCleanup, onMount } from 'solid-js';
 
-import type { Cell, TilePlacement } from '@/models/level';
+import type { Cell, LayerBounds, TilePlacement } from '@/models/level';
 import { type EditorTool, setSelection } from '@/stores/editor';
 
 import { MAX_ZOOM, MIN_ZOOM, TILE_SIZE } from './constants';
 import type {
   ContextMenuState,
   DragState,
+  LayerResizeHandle,
   PixiScene,
   SelectionRect,
 } from './types';
@@ -31,7 +32,11 @@ type UsePixiViewportInputParams = {
   scene: Accessor<PixiScene | null>;
   sceneApi: Pick<
     PixiSceneApi,
-    'getHostPoint' | 'redrawScene' | 'resetView' | 'screenToCell'
+    | 'getHostPoint'
+    | 'redrawScene'
+    | 'resetView'
+    | 'screenToCell'
+    | 'screenToWorld'
   >;
   selectedLayerId: Accessor<string | null>;
   selectedTool: Accessor<EditorTool>;
@@ -39,8 +44,11 @@ type UsePixiViewportInputParams = {
   setContextMenu: Setter<ContextMenuState>;
   setDragDelta: Setter<Cell | null>;
   setErasePreviewCells: Setter<Cell[]>;
+  setActiveLayerResizeHandle: Setter<LayerResizeHandle | null>;
   setHoverCell: Setter<Cell | null>;
+  setHoverLayerResizeHandle: Setter<LayerResizeHandle | null>;
   setLayerDragDelta: Setter<Cell | null>;
+  setLayerResizePreview: Setter<LayerBounds | null>;
   setIsPanning: Setter<boolean>;
   setIsMovingSelection: Setter<boolean>;
   setPaintPreviewCells: Setter<Cell[]>;
@@ -57,7 +65,72 @@ type PointerCell = {
 
 type SelectRectDragState = Extract<DragState, { mode: 'select-rect' }>;
 
+const LAYER_RESIZE_HANDLE_HIT_SIZE = 16;
+const LAYER_RESIZE_HIT_ORDER: LayerResizeHandle[] = [
+  'nw',
+  'ne',
+  'se',
+  'sw',
+  'n',
+  'e',
+  's',
+  'w',
+];
 const SELECTION_DRAG_THRESHOLD = 4;
+
+const getLayerResizeHandleCenters = (bounds: LayerBounds) => {
+  const left = bounds.x * TILE_SIZE;
+  const right = (bounds.x + bounds.width) * TILE_SIZE;
+  const bottom = bounds.y * TILE_SIZE;
+  const top = (bounds.y + bounds.height) * TILE_SIZE;
+  const centerX = (left + right) / 2;
+  const centerY = (bottom + top) / 2;
+
+  return {
+    n: { x: centerX, y: top },
+    ne: { x: right, y: top },
+    e: { x: right, y: centerY },
+    se: { x: right, y: bottom },
+    s: { x: centerX, y: bottom },
+    sw: { x: left, y: bottom },
+    w: { x: left, y: centerY },
+    nw: { x: left, y: top },
+  } satisfies Record<LayerResizeHandle, Cell>;
+};
+
+const getResizedLayerBounds = (
+  startBounds: LayerBounds,
+  handle: LayerResizeHandle,
+  delta: Cell,
+): LayerBounds => {
+  let minX = startBounds.x;
+  let maxX = startBounds.x + startBounds.width - 1;
+  let minY = startBounds.y;
+  let maxY = startBounds.y + startBounds.height - 1;
+
+  if (handle.includes('w')) {
+    minX = Math.min(maxX, minX + delta.x);
+  }
+
+  if (handle.includes('e')) {
+    maxX = Math.max(minX, maxX + delta.x);
+  }
+
+  if (handle.includes('s')) {
+    minY = Math.min(maxY, minY + delta.y);
+  }
+
+  if (handle.includes('n')) {
+    maxY = Math.max(minY, maxY + delta.y);
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+  };
+};
 
 export const usePixiViewportInput = ({
   actions,
@@ -72,8 +145,11 @@ export const usePixiViewportInput = ({
   setContextMenu,
   setDragDelta,
   setErasePreviewCells,
+  setActiveLayerResizeHandle,
   setHoverCell,
+  setHoverLayerResizeHandle,
   setLayerDragDelta,
+  setLayerResizePreview,
   setIsPanning,
   setIsMovingSelection,
   setPaintPreviewCells,
@@ -105,9 +181,12 @@ export const usePixiViewportInput = ({
   const resetTransientInputState = () => {
     dragState = null;
     isSpaceDown = false;
+    setActiveLayerResizeHandle(null);
     setDragDelta(null);
     setErasePreviewCells([]);
+    setHoverLayerResizeHandle(null);
     setLayerDragDelta(null);
+    setLayerResizePreview(null);
     setIsPanning(false);
     setIsMovingSelection(false);
     setPaintPreviewCells([]);
@@ -138,6 +217,35 @@ export const usePixiViewportInput = ({
       current,
       screenPoint,
     };
+  };
+
+  const getLayerResizeHandle = (
+    current: PixiScene,
+    screenPoint: Cell,
+  ): LayerResizeHandle | null => {
+    const layerId = selectedLayerId();
+    const bounds = actions.getLayerResizeBounds(layerId);
+
+    if (selectedTool() !== 'select' || !layerId || !bounds) {
+      return null;
+    }
+
+    const worldPoint = sceneApi.screenToWorld(current, screenPoint);
+    const hitRadius = LAYER_RESIZE_HANDLE_HIT_SIZE / (zoom() / 100) / 2;
+    const centers = getLayerResizeHandleCenters(bounds);
+
+    for (const handle of LAYER_RESIZE_HIT_ORDER) {
+      const center = centers[handle];
+      const isHit =
+        Math.abs(worldPoint.x - center.x) <= hitRadius &&
+        Math.abs(worldPoint.y - center.y) <= hitRadius;
+
+      if (isHit) {
+        return handle;
+      }
+    }
+
+    return null;
   };
 
   const getPasteTarget = () =>
@@ -190,6 +298,26 @@ export const usePixiViewportInput = ({
       startCell: cell,
     };
     setLayerDragDelta({ x: 0, y: 0 });
+    setIsMovingSelection(true);
+  };
+
+  const beginResizeLayer = (
+    pointerId: number,
+    layerId: string,
+    handle: LayerResizeHandle,
+    cell: Cell,
+    startBounds: LayerBounds,
+  ) => {
+    dragState = {
+      mode: 'resize-layer',
+      layerId,
+      pointerId,
+      handle,
+      startCell: cell,
+      startBounds,
+    };
+    setActiveLayerResizeHandle(handle);
+    setLayerResizePreview(startBounds);
     setIsMovingSelection(true);
   };
 
@@ -259,6 +387,16 @@ export const usePixiViewportInput = ({
         x: cell.x - dragState.startCell.x,
         y: cell.y - dragState.startCell.y,
       });
+      return;
+    }
+
+    if (dragState.mode === 'resize-layer') {
+      setLayerResizePreview(
+        getResizedLayerBounds(dragState.startBounds, dragState.handle, {
+          x: cell.x - dragState.startCell.x,
+          y: cell.y - dragState.startCell.y,
+        }),
+      );
       return;
     }
 
@@ -338,6 +476,21 @@ export const usePixiViewportInput = ({
       return;
     }
 
+    if (dragState.mode === 'resize-layer') {
+      if (!cell) {
+        return;
+      }
+
+      actions.resizeLayer(
+        dragState.layerId,
+        getResizedLayerBounds(dragState.startBounds, dragState.handle, {
+          x: cell.x - dragState.startCell.x,
+          y: cell.y - dragState.startCell.y,
+        }),
+      );
+      return;
+    }
+
     if (dragState.mode === 'select-rect') {
       if (cell) {
         if (dragState.moved) {
@@ -389,6 +542,25 @@ export const usePixiViewportInput = ({
 
     const selectedLayer = selectedLayerId();
     const selectedLayerBounds = actions.getLayerBounds(selectedLayer);
+    const resizeHandle = getLayerResizeHandle(
+      pointerCell.current,
+      pointerCell.screenPoint,
+    );
+
+    if (selectedTool() === 'select' && selectedLayer && resizeHandle) {
+      const startBounds = actions.getLayerResizeBounds(selectedLayer);
+
+      if (startBounds) {
+        beginResizeLayer(
+          event.pointerId,
+          selectedLayer,
+          resizeHandle,
+          pointerCell.cell,
+          startBounds,
+        );
+        return;
+      }
+    }
 
     if (
       selectedTool() === 'select' &&
@@ -435,6 +607,13 @@ export const usePixiViewportInput = ({
     }
 
     setHoverCell(pointerCell.cell);
+
+    if (!dragState) {
+      setHoverLayerResizeHandle(
+        getLayerResizeHandle(pointerCell.current, pointerCell.screenPoint),
+      );
+    }
+
     updateDrag(event, pointerCell.cell, pointerCell.screenPoint);
   };
 
@@ -453,6 +632,7 @@ export const usePixiViewportInput = ({
   const handlePointerLeave = () => {
     if (!dragState) {
       setHoverCell(null);
+      setHoverLayerResizeHandle(null);
     }
   };
 

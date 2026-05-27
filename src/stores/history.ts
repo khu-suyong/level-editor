@@ -59,12 +59,22 @@ export type MoveHistoryAction = {
   bounds?: LayerBoundsMove;
 };
 
+export type ResizeLayerHistoryAction = {
+  type: 'resize-layer';
+  layerId: string;
+  startBounds: LayerBounds | null;
+  endBounds: LayerBounds;
+  startTiles: TilePlacement[];
+  endTiles: TilePlacement[];
+};
+
 export type EditorHistoryAction =
   | AddLayerHistoryAction
   | AddHistoryAction
   | DeleteHistoryAction
   | MoveHistoryAction
   | ReplaceHistoryAction
+  | ResizeLayerHistoryAction
   | ReplaceLevelHistoryAction;
 
 export type EditorHistoryState = {
@@ -105,6 +115,38 @@ const cloneLayerBoundsMove = (move: LayerBoundsMove): LayerBoundsMove => ({
   end: cloneLayerBounds(move.end),
 });
 
+const layerBoundsEqual = (
+  first: LayerBounds | null,
+  second: LayerBounds | null,
+) =>
+  first?.x === second?.x &&
+  first?.y === second?.y &&
+  first?.width === second?.width &&
+  first?.height === second?.height;
+
+const tilePlacementsEqual = (
+  first: TilePlacement[],
+  second: TilePlacement[],
+) => {
+  if (first.length !== second.length) {
+    return false;
+  }
+
+  return first.every((tile, index) => {
+    const candidate = second[index];
+
+    return (
+      !!candidate &&
+      tile.x === candidate.x &&
+      tile.y === candidate.y &&
+      tile.tileId === candidate.tileId &&
+      tile.source?.type === candidate.source?.type &&
+      tile.source?.importId === candidate.source?.importId &&
+      tile.source?.objectId === candidate.source?.objectId
+    );
+  });
+};
+
 const cloneHistoryAction = (
   action: EditorHistoryAction,
 ): EditorHistoryAction => {
@@ -136,6 +178,18 @@ const cloneHistoryAction = (
       ...action,
       before: cloneSnapshot(action.before),
       after: cloneSnapshot(action.after),
+    };
+  }
+
+  if (action.type === 'resize-layer') {
+    return {
+      ...action,
+      startBounds: action.startBounds
+        ? cloneLayerBounds(action.startBounds)
+        : null,
+      endBounds: cloneLayerBounds(action.endBounds),
+      startTiles: action.startTiles.map(cloneTile),
+      endTiles: action.endTiles.map(cloneTile),
     };
   }
 
@@ -198,6 +252,20 @@ const removeTiles = (tiles: TilePlacement[], targets: ReadonlyArray<Cell>) => {
   return tiles.filter((tile) => !targetKeys.has(coordinateKey(tile)));
 };
 
+const setLayerBoundsAndTiles = (
+  layer: LevelLayer,
+  bounds: LayerBounds | null,
+  tiles: TilePlacement[],
+): LevelLayer => {
+  const { bounds: _bounds, ...rest } = layer;
+
+  return {
+    ...rest,
+    ...(bounds ? { bounds: cloneLayerBounds(bounds) } : {}),
+    tiles: normalizeTiles(tiles),
+  };
+};
+
 export const applyHistoryAction = (
   snapshot: LevelData,
   action: EditorHistoryAction,
@@ -235,6 +303,12 @@ export const applyHistoryAction = (
       ...removeTiles(tiles, [...action.delete, ...action.add]),
       ...action.add,
     ]);
+  }
+
+  if (action.type === 'resize-layer') {
+    return updateLayer(snapshot, action.layerId, (layer) =>
+      setLayerBoundsAndTiles(layer, action.endBounds, action.endTiles),
+    );
   }
 
   return updateLayer(snapshot, action.layerId, (layer) => ({
@@ -296,6 +370,12 @@ export const revertHistoryAction = (
       ...removeTiles(tiles, [...action.add, ...action.delete]),
       ...action.delete,
     ]);
+  }
+
+  if (action.type === 'resize-layer') {
+    return updateLayer(snapshot, action.layerId, (layer) =>
+      setLayerBoundsAndTiles(layer, action.startBounds, action.startTiles),
+    );
   }
 
   return updateLayer(snapshot, action.layerId, (layer) => ({
@@ -443,6 +523,30 @@ export const moveTiles = (
   }
 
   recordHistoryAction({ type: 'move', layerId, moves, bounds });
+};
+
+export const resizeLayer = (
+  layerId: string,
+  startBounds: LayerBounds | null,
+  endBounds: LayerBounds,
+  startTiles: TilePlacement[],
+  endTiles: TilePlacement[],
+) => {
+  if (
+    layerBoundsEqual(startBounds, endBounds) &&
+    tilePlacementsEqual(normalizeTiles(startTiles), normalizeTiles(endTiles))
+  ) {
+    return;
+  }
+
+  recordHistoryAction({
+    type: 'resize-layer',
+    layerId,
+    startBounds,
+    endBounds,
+    startTiles,
+    endTiles,
+  });
 };
 
 export const replaceTiles = (

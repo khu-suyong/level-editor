@@ -1,6 +1,11 @@
 import type { Accessor } from 'solid-js';
 
-import type { Cell, LevelData, TilePlacement } from '@/models/level';
+import type {
+  Cell,
+  LayerBounds,
+  LevelData,
+  TilePlacement,
+} from '@/models/level';
 import {
   setClipboard,
   setSelection,
@@ -10,6 +15,7 @@ import {
   addTiles,
   moveTiles,
   deleteTiles as recordDeleteTiles,
+  resizeLayer as recordResizeLayer,
   replaceTiles,
 } from '@/stores/history';
 
@@ -18,11 +24,85 @@ import {
   cellsEqual,
   coordinateKey,
   getLayerTileBounds,
+  isCellInTileBounds,
+  layerBoundsToTileBounds,
   normalizeTiles,
+  tileBoundsToLayerBounds,
   uniqueCells,
 } from './util';
 
 const cloneTile = (tile: TilePlacement): TilePlacement => ({ ...tile });
+
+const layerBoundsEqual = (first: LayerBounds, second: LayerBounds) =>
+  first.x === second.x &&
+  first.y === second.y &&
+  first.width === second.width &&
+  first.height === second.height;
+
+const getResampledSourceCoordinate = (
+  sourceStart: number,
+  sourceSize: number,
+  targetSize: number,
+  targetOffset: number,
+) =>
+  sourceStart +
+  Math.min(
+    sourceSize - 1,
+    Math.floor(((targetOffset + 0.5) * sourceSize) / targetSize),
+  );
+
+const resampleLayerTiles = (
+  tiles: TilePlacement[],
+  startBounds: LayerBounds,
+  endBounds: LayerBounds,
+) => {
+  const sourceBounds = layerBoundsToTileBounds(startBounds);
+  const sourceTilesByCoordinate = new Map<string, TilePlacement>();
+  const outsideTiles: TilePlacement[] = [];
+  const resizedTiles: TilePlacement[] = [];
+
+  for (const tile of tiles) {
+    if (!isCellInTileBounds(tile, sourceBounds)) {
+      outsideTiles.push(cloneTile(tile));
+      continue;
+    }
+
+    sourceTilesByCoordinate.set(coordinateKey(tile), tile);
+  }
+
+  for (let yOffset = 0; yOffset < endBounds.height; yOffset += 1) {
+    const sourceY = getResampledSourceCoordinate(
+      startBounds.y,
+      startBounds.height,
+      endBounds.height,
+      yOffset,
+    );
+
+    for (let xOffset = 0; xOffset < endBounds.width; xOffset += 1) {
+      const sourceX = getResampledSourceCoordinate(
+        startBounds.x,
+        startBounds.width,
+        endBounds.width,
+        xOffset,
+      );
+      const sourceTile = sourceTilesByCoordinate.get(
+        coordinateKey({ x: sourceX, y: sourceY }),
+      );
+
+      if (!sourceTile) {
+        continue;
+      }
+
+      resizedTiles.push({
+        ...sourceTile,
+        x: endBounds.x + xOffset,
+        y: endBounds.y + yOffset,
+      });
+    }
+  }
+
+  return normalizeTiles([...outsideTiles, ...resizedTiles]);
+};
 
 type UsePixiEditorActionsParams = {
   activeLayerId: Accessor<string>;
@@ -58,6 +138,22 @@ export const usePixiEditorActions = ({
     const layer = getLayer(layerId);
 
     return layer ? getLayerTileBounds(layer) : null;
+  };
+
+  const getLayerResizeBounds = (layerId: string | null) => {
+    const layer = getLayer(layerId);
+
+    if (!layer) {
+      return null;
+    }
+
+    if (layer.bounds) {
+      return { ...layer.bounds };
+    }
+
+    const bounds = getLayerTileBounds(layer);
+
+    return bounds ? tileBoundsToLayerBounds(bounds) : null;
   };
 
   const getBrushTileId = () => {
@@ -244,6 +340,24 @@ export const usePixiEditorActions = ({
     setSelection([]);
   };
 
+  const resizeLayer = (layerId: string, endBounds: LayerBounds) => {
+    const layer = getLayer(layerId);
+    const startBounds = getLayerResizeBounds(layerId);
+
+    if (!layer || !startBounds || layerBoundsEqual(startBounds, endBounds)) {
+      return;
+    }
+
+    recordResizeLayer(
+      layerId,
+      layer.bounds ? { ...layer.bounds } : null,
+      endBounds,
+      layer.tiles,
+      resampleLayerTiles(layer.tiles, startBounds, endBounds),
+    );
+    setSelection([]);
+  };
+
   const copySelection = () => {
     if (selection().length === 0) {
       return;
@@ -295,10 +409,12 @@ export const usePixiEditorActions = ({
     getActiveTiles,
     getBrushTileId,
     getLayerBounds,
+    getLayerResizeBounds,
     moveLayer,
     moveSelection,
     paintCells,
     pasteClipboard,
+    resizeLayer,
     selectTilesInRect,
   };
 };

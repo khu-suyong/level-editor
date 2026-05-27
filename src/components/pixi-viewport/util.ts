@@ -76,6 +76,13 @@ export const layerBoundsToTileBounds = (bounds: LayerBounds): TileBounds => ({
   maxY: bounds.y + bounds.height - 1,
 });
 
+export const tileBoundsToLayerBounds = (bounds: TileBounds): LayerBounds => ({
+  x: bounds.minX,
+  y: bounds.minY,
+  width: bounds.maxX - bounds.minX + 1,
+  height: bounds.maxY - bounds.minY + 1,
+});
+
 export const getLayerTileBounds = (layer: LevelLayer): TileBounds | null =>
   layer.bounds
     ? layerBoundsToTileBounds(layer.bounds)

@@ -1,8 +1,7 @@
 import { Box } from '@suis-ui/kit';
-
+import { TileIconMap } from '@/helpers/constants';
 import type { TileIcon, TileMapping } from '@/models/level';
 import { Icon } from '../../../components/ui/icon';
-import { TileIconMap } from '@/helpers/constants';
 
 export const getTileIconComponent = (icon: TileIcon) => TileIconMap[icon];
 

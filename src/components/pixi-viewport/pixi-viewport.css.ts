@@ -35,6 +35,22 @@ export const isSelectionDragging = style({
   cursor: 'grabbing',
 });
 
+export const isResizeNorthSouth = style({
+  cursor: 'ns-resize',
+});
+
+export const isResizeEastWest = style({
+  cursor: 'ew-resize',
+});
+
+export const isResizeNorthEastSouthWest = style({
+  cursor: 'nesw-resize',
+});
+
+export const isResizeNorthWestSouthEast = style({
+  cursor: 'nwse-resize',
+});
+
 export const contextMenu = style({
   position: 'absolute',
   pointerEvents: 'none',

@@ -7,11 +7,12 @@ import {
   SelectItem,
   type SelectItemProps,
 } from '@suis-ui/kit';
-import { Brush, Pencil, Plus, Save, Trash2, X } from 'lucide-solid';
-import { createEffect, createMemo, createSignal, For, Show } from 'solid-js';
-
+import { Pencil, Plus, Save, Trash2, X } from 'lucide-solid';
+import { createEffect, createMemo, createSignal, For } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import { Dialog } from '@/components/ui/dialog';
 import { Icon } from '@/components/ui/icon';
+import { TileIconMap } from '@/helpers/constants';
 import type { CvShape, LevelData, TileIcon, TileMapping } from '@/models/level';
 import { TilePreview } from '@/pages/_components/tile-preview';
 import {
@@ -26,10 +27,8 @@ import {
   updatePaletteTileInLevel,
   validatePaletteTileUpdate,
 } from '@/stores/palette';
-import * as styles from './side-panel.css';
-import { Dynamic } from 'solid-js/web';
-import { TileIconMap } from '@/helpers/constants';
 import { colorInputStyle } from './palette-tab.css';
+import * as styles from './side-panel.css';
 
 type PaletteTabProps = {
   level: LevelData;
@@ -252,16 +251,10 @@ export const PaletteTab = (props: PaletteTabProps) => {
         onClose={handleCloseDelete}
         footer={
           <>
-            <Button
-              variant={'ghost'}
-              onClick={handleCloseDelete}
-            >
+            <Button variant={'ghost'} onClick={handleCloseDelete}>
               {'취소'}
             </Button>
-            <Button
-              variant={'primary'}
-              onClick={handleConfirmDelete}
-            >
+            <Button variant={'primary'} onClick={handleConfirmDelete}>
               {'삭제'}
             </Button>
           </>
@@ -353,11 +346,6 @@ const PaletteTileDialog = (props: PaletteTileDialogProps) => {
   const [status, setStatus] = createSignal<EditStatus | null>(null);
   const nextAvailableShape = () =>
     CV_SHAPE_PRESETS.find((shape) => !draft().cvShapes.includes(shape)) ?? null;
-  const iconPreviewTile = (icon: TileIcon) => ({
-    backgroundColor: draft().backgroundColor,
-    icon,
-    iconColor: draft().iconColor,
-  });
   const updateDraft = (update: Partial<TileMapping>) => {
     setDraft((current) => ({
       ...current,
@@ -489,7 +477,14 @@ const PaletteTileDialog = (props: PaletteTileDialogProps) => {
           renderItem={(itemProps: SelectItemProps) => (
             <SelectItem
               {...itemProps}
-              media={<Dynamic component={TileIconMap[(itemProps as { value: TileIcon }).value]} size={16} />}
+              media={
+                <Dynamic
+                  component={
+                    TileIconMap[(itemProps as { value: TileIcon }).value]
+                  }
+                  size={16}
+                />
+              }
             />
           )}
         />
@@ -514,7 +509,12 @@ const PaletteTileDialog = (props: PaletteTileDialogProps) => {
       </Box>
 
       <Box w={'100%'} gap={'xs'}>
-        <Box direction={'row'} justify={'space-between'} align={'center'} gap={'xs'}>
+        <Box
+          direction={'row'}
+          justify={'space-between'}
+          align={'center'}
+          gap={'xs'}
+        >
           <Box as={'label'} text={'caption'} c={'text.caption'}>
             {'매핑'}
           </Box>
@@ -534,9 +534,16 @@ const PaletteTileDialog = (props: PaletteTileDialogProps) => {
         <For
           each={draft().cvShapes}
           fallback={
-            <Box text={'caption'} c={'text.caption'} p={'md'} justify={'center'} align={'center'}>
+            <Box
+              text={'caption'}
+              c={'text.caption'}
+              p={'md'}
+              justify={'center'}
+              align={'center'}
+            >
               {'현재 매핑 없음'}
-            </Box>}
+            </Box>
+          }
         >
           {(shape, index) => (
             <Box direction={'row'} align={'center'} gap={'xs'}>
@@ -547,16 +554,26 @@ const PaletteTileDialog = (props: PaletteTileDialogProps) => {
                 }
                 data={shapeOptions}
                 contentProps={selectContentProps}
-                renderValue={(value: typeof shapeOptions[number]) => (
+                renderValue={(value: (typeof shapeOptions)[number]) => (
                   <Box direction={'row'} align={'center'} gap={'xs'}>
-                    <Dynamic component={TileIconMap[value as unknown as TileIcon]} size={16} />
+                    <Dynamic
+                      component={TileIconMap[value as unknown as TileIcon]}
+                      size={16}
+                    />
                     <Box as={'span'}>{value}</Box>
                   </Box>
                 )}
                 renderItem={(itemProps: SelectItemProps) => (
                   <SelectItem
                     {...itemProps}
-                    media={<Dynamic component={TileIconMap[(itemProps as { value: TileIcon }).value]} size={16} />}
+                    media={
+                      <Dynamic
+                        component={
+                          TileIconMap[(itemProps as { value: TileIcon }).value]
+                        }
+                        size={16}
+                      />
+                    }
                   />
                 )}
               />
@@ -605,7 +622,9 @@ const ColorInput = (props: ColorInputProps) => (
       bd={'md'}
       type={'color'}
       value={props.value}
-      onInput={(event: InputEvent) => props.onInput((event.target as HTMLInputElement).value)}
+      onInput={(event: InputEvent) =>
+        props.onInput((event.target as HTMLInputElement).value)
+      }
       style={{ 'background-color': props.value }}
       class={colorInputStyle}
     />

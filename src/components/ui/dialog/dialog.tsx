@@ -1,9 +1,8 @@
 import { Box, Popup } from '@suis-ui/kit';
 import { FocusManager, type FocusManagerProps } from '@suis-ui/primitives';
 import { createSignal, createUniqueId, type JSX, Show } from 'solid-js';
-
-import { anchorStyle, backdropStyle, dialogAnimation } from './dialog.css';
 import { Portal } from 'solid-js/web';
+import { anchorStyle, backdropStyle, dialogAnimation } from './dialog.css';
 
 type DialogProps = {
   open: boolean;

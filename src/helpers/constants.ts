@@ -1,4 +1,11 @@
-import { Star, Triangle, Minus, DoorOpen, AppWindow, ChartNoAxesColumnIncreasing } from 'lucide-solid';
+import {
+  AppWindow,
+  ChartNoAxesColumnIncreasing,
+  DoorOpen,
+  Minus,
+  Star,
+  Triangle,
+} from 'lucide-solid';
 
 import type { IconType } from '@/components/ui/icon';
 import type { TileIcon } from '@/models/level';

@@ -39,7 +39,7 @@ Use `pnpm` as the package manager because this repository has a `pnpm-lock.yaml`
 
 ## UI Guidelines
 
-- Check `docs/SUIS_UI_GUIDE.md` before making UI changes.
+- Check `https://su-yong.github.io/suis` before making UI changes.
 - Use `@suis-ui/kit` components and tokens when practical.
 - Keep the app interface dense, predictable, and appropriate for an editor tool.
 - Match the existing visual language and spacing for buttons, panels, toolbars, and status displays.
@@ -60,4 +60,3 @@ Use `pnpm` as the package manager because this repository has a `pnpm-lock.yaml`
 - Add new dependencies only when necessary, and first check whether the existing libraries can solve the problem. Always pin dependency versions when adding packages.
 - After code changes, verify with `pnpm run build` when practical. A build is not required for documentation-only changes.
 - After all code work is complete, run `pnpm run biome` to finish code cleanup.
-- Check the actual change scope with `git diff` and keep unrelated files out of the change.

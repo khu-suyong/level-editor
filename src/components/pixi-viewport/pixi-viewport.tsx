@@ -8,11 +8,15 @@ import {
   Trash2,
 } from 'lucide-solid';
 import { createSignal } from 'solid-js';
-import type { Cell, LevelData } from '@/models/level';
+import type { Cell, LayerBounds, LevelData } from '@/models/level';
 import { editorStore, setZoom } from '@/stores/editor';
 import { Icon } from '../ui/icon';
 import * as styles from './pixi-viewport.css';
-import type { ContextMenuState, SelectionRect } from './types';
+import type {
+  ContextMenuState,
+  LayerResizeHandle,
+  SelectionRect,
+} from './types';
 import { usePixiEditorActions } from './use-pixi-editor-actions';
 import { usePixiScene } from './use-pixi-scene';
 import { usePixiViewportInput } from './use-pixi-viewport-input';
@@ -34,7 +38,13 @@ export const PixiViewport = (props: PixiViewportProps) => {
   });
   const [dragDelta, setDragDelta] = createSignal<Cell | null>(null);
   const [erasePreviewCells, setErasePreviewCells] = createSignal<Cell[]>([]);
+  const [activeLayerResizeHandle, setActiveLayerResizeHandle] =
+    createSignal<LayerResizeHandle | null>(null);
+  const [hoverLayerResizeHandle, setHoverLayerResizeHandle] =
+    createSignal<LayerResizeHandle | null>(null);
   const [layerDragDelta, setLayerDragDelta] = createSignal<Cell | null>(null);
+  const [layerResizePreview, setLayerResizePreview] =
+    createSignal<LayerBounds | null>(null);
   const [paintPreviewCells, setPaintPreviewCells] = createSignal<Cell[]>([]);
   const [selectionRect, setSelectionRect] = createSignal<SelectionRect | null>(
     null,
@@ -70,6 +80,13 @@ export const PixiViewport = (props: PixiViewportProps) => {
       selection().some((tile) => tile.x === cell.x && tile.y === cell.y)
     );
   };
+  const layerResizeHandle = () =>
+    activeLayerResizeHandle() ?? hoverLayerResizeHandle();
+  const hasLayerResizeCursor = (...handles: LayerResizeHandle[]) => {
+    const handle = layerResizeHandle();
+
+    return selectedTool() === 'select' && !!handle && handles.includes(handle);
+  };
 
   const actions = usePixiEditorActions({
     activeLayerId,
@@ -86,8 +103,11 @@ export const PixiViewport = (props: PixiViewportProps) => {
     dragDelta,
     erasePreviewCells,
     getHost,
+    activeLayerResizeHandle,
+    hoverLayerResizeHandle,
     hoverCell,
     layerDragDelta,
+    layerResizePreview,
     paintPreviewCells,
     selectedLayerId,
     selectedTool,
@@ -110,8 +130,11 @@ export const PixiViewport = (props: PixiViewportProps) => {
     setContextMenu,
     setDragDelta,
     setErasePreviewCells,
+    setActiveLayerResizeHandle,
     setHoverCell,
+    setHoverLayerResizeHandle,
     setLayerDragDelta,
+    setLayerResizePreview,
     setIsMovingSelection,
     setIsPanning,
     setPaintPreviewCells,
@@ -130,6 +153,10 @@ export const PixiViewport = (props: PixiViewportProps) => {
           [styles.isPanning]: isPanning(),
           [styles.isSelectionDraggable]: isHoveringSelection(),
           [styles.isSelectionDragging]: isMovingSelection(),
+          [styles.isResizeNorthSouth]: hasLayerResizeCursor('n', 's'),
+          [styles.isResizeEastWest]: hasLayerResizeCursor('e', 'w'),
+          [styles.isResizeNorthEastSouthWest]: hasLayerResizeCursor('ne', 'sw'),
+          [styles.isResizeNorthWestSouthEast]: hasLayerResizeCursor('nw', 'se'),
         }}
       />
       <Popup

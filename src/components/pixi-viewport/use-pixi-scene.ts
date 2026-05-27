@@ -5,6 +5,7 @@ import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 
 import type {
   Cell,
+  LayerBounds,
   LevelData,
   TileMapping,
   TilePlacement,
@@ -13,10 +14,21 @@ import { type EditorTool, setCanvasReady } from '@/stores/editor';
 
 import { TILE_SIZE } from './constants';
 import * as styles from './pixi-viewport.css';
-import type { ContextMenuState, PixiScene, SelectionRect } from './types';
-import { getCellRect, getLayerTileBounds } from './util';
+import type {
+  ContextMenuState,
+  LayerResizeHandle,
+  PixiScene,
+  SelectionRect,
+} from './types';
+import {
+  getCellRect,
+  getLayerTileBounds,
+  layerBoundsToTileBounds,
+  type TileBounds,
+} from './util';
 
 type UsePixiSceneParams = {
+  activeLayerResizeHandle: Accessor<LayerResizeHandle | null>;
   activeLayerId: Accessor<string>;
   brushTileId: Accessor<number>;
   clipboard: Accessor<{
@@ -26,8 +38,10 @@ type UsePixiSceneParams = {
   dragDelta: Accessor<Cell | null>;
   erasePreviewCells: Accessor<Cell[]>;
   getHost: () => HTMLDivElement;
+  hoverLayerResizeHandle: Accessor<LayerResizeHandle | null>;
   hoverCell: Accessor<Cell | null>;
   layerDragDelta: Accessor<Cell | null>;
+  layerResizePreview: Accessor<LayerBounds | null>;
   paintPreviewCells: Accessor<Cell[]>;
   selectedLayerId: Accessor<string | null>;
   selectedTool: Accessor<EditorTool>;
@@ -42,6 +56,17 @@ const DEFAULT_VIEWPORT_BACKGROUND_COLOR = 0x101827;
 const DEFAULT_TILE_BACKGROUND_COLOR = 0x2563eb;
 const DEFAULT_TILE_ICON_COLOR = 0xf8fafc;
 const LAYER_BOUNDS_COLOR = 0x10b981;
+const LAYER_RESIZE_HANDLE_SIZE = 10;
+const LAYER_RESIZE_HANDLES: LayerResizeHandle[] = [
+  'n',
+  'ne',
+  'e',
+  'se',
+  's',
+  'sw',
+  'w',
+  'nw',
+];
 
 const fallbackTile: TileMapping = {
   tileId: 0,
@@ -359,7 +384,71 @@ const drawErasePreviewTile = (
   return previewTile;
 };
 
+const offsetTileBounds = (bounds: TileBounds, delta: Cell | null) => ({
+  minX: bounds.minX + (delta?.x ?? 0),
+  maxX: bounds.maxX + (delta?.x ?? 0),
+  minY: bounds.minY + (delta?.y ?? 0),
+  maxY: bounds.maxY + (delta?.y ?? 0),
+});
+
+const getLayerResizeHandleCenters = (bounds: TileBounds) => {
+  const left = bounds.minX * TILE_SIZE;
+  const right = (bounds.maxX + 1) * TILE_SIZE;
+  const bottom = bounds.minY * TILE_SIZE;
+  const top = (bounds.maxY + 1) * TILE_SIZE;
+  const centerX = (left + right) / 2;
+  const centerY = (bottom + top) / 2;
+
+  return {
+    n: { x: centerX, y: top },
+    ne: { x: right, y: top },
+    e: { x: right, y: centerY },
+    se: { x: right, y: bottom },
+    s: { x: centerX, y: bottom },
+    sw: { x: left, y: bottom },
+    w: { x: left, y: centerY },
+    nw: { x: left, y: top },
+  } satisfies Record<LayerResizeHandle, Cell>;
+};
+
+const drawLayerResizeHandles = (
+  current: PixiScene,
+  bounds: TileBounds,
+  scale: number,
+  hoverHandle: LayerResizeHandle | null,
+  activeHandle: LayerResizeHandle | null,
+) => {
+  const handleSize = LAYER_RESIZE_HANDLE_SIZE / scale;
+  const lineWidth = 1.5 / scale;
+  const centers = getLayerResizeHandleCenters(bounds);
+
+  for (const handle of LAYER_RESIZE_HANDLES) {
+    const center = centers[handle];
+    const selected = handle === activeHandle || handle === hoverHandle;
+    const handleGraphic = new Graphics();
+
+    handleGraphic
+      .rect(
+        center.x - handleSize / 2,
+        center.y - handleSize / 2,
+        handleSize,
+        handleSize,
+      )
+      .fill({
+        color: selected ? 0xf8fafc : LAYER_BOUNDS_COLOR,
+        alpha: selected ? 1 : 0.92,
+      })
+      .stroke({
+        color: LAYER_BOUNDS_COLOR,
+        alpha: 1,
+        width: lineWidth,
+      });
+    current.overlay.addChild(handleGraphic);
+  }
+};
+
 export const usePixiScene = ({
+  activeLayerResizeHandle,
   activeLayerId,
   brushTileId,
   clipboard,
@@ -367,8 +456,10 @@ export const usePixiScene = ({
   dragDelta,
   erasePreviewCells,
   getHost,
+  hoverLayerResizeHandle,
   hoverCell,
   layerDragDelta,
+  layerResizePreview,
   paintPreviewCells,
   selectedLayerId,
   selectedTool,
@@ -628,6 +719,7 @@ export const usePixiScene = ({
     const delta = dragDelta();
     const hover = hoverCell();
     const rectSelection = selectionRect();
+    const resizePreview = layerResizePreview();
 
     clearContainer(current.overlay);
 
@@ -637,19 +729,26 @@ export const usePixiScene = ({
     const selectedLayerBounds = selectedLayer
       ? getLayerTileBounds(selectedLayer)
       : null;
+    const layerBounds = resizePreview
+      ? layerBoundsToTileBounds(resizePreview)
+      : selectedLayerBounds;
+    const displayedLayerBounds = layerBounds
+      ? offsetTileBounds(layerBounds, resizePreview ? null : layerDragDelta())
+      : null;
 
-    if (selectedLayerBounds) {
-      const layerDelta = layerDragDelta();
+    if (displayedLayerBounds) {
       const layerBoundsGraphic = new Graphics();
 
       layerBoundsGraphic
         .rect(
-          (selectedLayerBounds.minX + (layerDelta?.x ?? 0)) * TILE_SIZE,
-          (selectedLayerBounds.minY + (layerDelta?.y ?? 0)) * TILE_SIZE,
-          (selectedLayerBounds.maxX - selectedLayerBounds.minX + 1) * TILE_SIZE,
-          (selectedLayerBounds.maxY - selectedLayerBounds.minY + 1) * TILE_SIZE,
+          displayedLayerBounds.minX * TILE_SIZE,
+          displayedLayerBounds.minY * TILE_SIZE,
+          (displayedLayerBounds.maxX - displayedLayerBounds.minX + 1) *
+            TILE_SIZE,
+          (displayedLayerBounds.maxY - displayedLayerBounds.minY + 1) *
+            TILE_SIZE,
         )
-        .fill({ color: LAYER_BOUNDS_COLOR, alpha: 0.1 })
+        .fill({ color: LAYER_BOUNDS_COLOR, alpha: resizePreview ? 0.14 : 0.1 })
         .stroke({ color: LAYER_BOUNDS_COLOR, alpha: 0.72, width: lineWidth });
       current.overlay.addChild(layerBoundsGraphic);
     }
@@ -708,6 +807,16 @@ export const usePixiScene = ({
         .fill({ color: 0x38bdf8, alpha: 0.08 })
         .stroke({ color: 0x38bdf8, alpha: 0.78, width: lineWidth });
       current.overlay.addChild(selectionRectGraphic);
+    }
+
+    if (displayedLayerBounds && selectedTool() === 'select') {
+      drawLayerResizeHandles(
+        current,
+        displayedLayerBounds,
+        scale,
+        hoverLayerResizeHandle(),
+        activeLayerResizeHandle(),
+      );
     }
   };
 

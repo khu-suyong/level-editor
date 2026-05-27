@@ -1,6 +1,6 @@
 import type { Application, Container, Graphics } from 'pixi.js';
 
-import type { Cell, TilePlacement } from '@/models/level';
+import type { Cell, LayerBounds, TilePlacement } from '@/models/level';
 
 export type PixiScene = {
   app: Application;
@@ -24,6 +24,16 @@ export type SelectionRect = {
   start: Cell;
   end: Cell;
 };
+
+export type LayerResizeHandle =
+  | 'n'
+  | 'ne'
+  | 'e'
+  | 'se'
+  | 's'
+  | 'sw'
+  | 'w'
+  | 'nw';
 
 export type DragState =
   | {
@@ -56,4 +66,12 @@ export type DragState =
       layerId: string;
       pointerId: number;
       startCell: Cell;
+    }
+  | {
+      mode: 'resize-layer';
+      layerId: string;
+      pointerId: number;
+      handle: LayerResizeHandle;
+      startCell: Cell;
+      startBounds: LayerBounds;
     };
