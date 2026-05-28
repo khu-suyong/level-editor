@@ -5,7 +5,7 @@ export const panel = style({
   backdropFilter: 'blur(10px)',
 });
 
-export const zoomValue = style({
+export const controlValue = style({
   fontWeight: vars.font.title.fontWeight,
   lineHeight: vars.font.body.lineHeight,
 });

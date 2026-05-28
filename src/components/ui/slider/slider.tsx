@@ -8,17 +8,20 @@ export type SliderProps = Omit<
   max?: number;
   min?: number;
   onChange: (value: number) => void;
+  onCommit?: (value: number) => void;
   step?: number;
   value: number;
 };
 
 export const Slider = (props: SliderProps) => {
   const [local, rest] = splitProps(props, [
+    'aria-label',
     'class',
     'classList',
     'max',
     'min',
     'onChange',
+    'onCommit',
     'step',
     'value',
     'w',
@@ -33,11 +36,16 @@ export const Slider = (props: SliderProps) => {
     >
       <input
         type={'range'}
+        aria-label={local['aria-label']}
         min={`${local.min ?? 0}`}
         max={`${local.max ?? 100}`}
         step={`${local.step ?? 1}`}
         value={local.value}
         onInput={(event) => local.onChange(event.currentTarget.valueAsNumber)}
+        onChange={(event) =>
+          local.onCommit?.(event.currentTarget.valueAsNumber)
+        }
+        onBlur={(event) => local.onCommit?.(event.currentTarget.valueAsNumber)}
       />
     </Box>
   );

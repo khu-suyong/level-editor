@@ -20,7 +20,6 @@ import type {
 } from '@/models/level';
 import { type EditorTool, setCanvasReady } from '@/stores/editor';
 
-import { TILE_SIZE } from './constants';
 import * as styles from './pixi-viewport.css';
 import type {
   ContextMenuState,
@@ -45,6 +44,7 @@ type UsePixiSceneParams = {
   contextMenu: Accessor<ContextMenuState>;
   dragDelta: Accessor<Cell | null>;
   erasePreviewCells: Accessor<Cell[]>;
+  gridSize: Accessor<number>;
   getHost: () => HTMLDivElement;
   hoverLayerResizeHandle: Accessor<LayerResizeHandle | null>;
   hoverCell: Accessor<Cell | null>;
@@ -269,12 +269,13 @@ const drawTileIcon = (
   tile: TileMapping,
   lineWidth: number,
   alpha: number,
+  gridSize: number,
 ) => {
   const icon = new Graphics();
   const color = paletteColorToHex(tile.iconColor, DEFAULT_TILE_ICON_COLOR);
-  const x = rect.x + TILE_SIZE * 0.28;
-  const y = rect.y + TILE_SIZE * 0.28;
-  const size = TILE_SIZE * 0.44;
+  const x = rect.x + gridSize * 0.28;
+  const y = rect.y + gridSize * 0.28;
+  const size = gridSize * 0.44;
   const centerX = x + size / 2;
   const centerY = y + size / 2;
   const stroke = {
@@ -366,10 +367,11 @@ const drawErasePreviewTile = (
   rect: Cell,
   tile: TileMapping,
   lineWidth: number,
+  gridSize: number,
 ) => {
   const previewTile = new Graphics();
   const inset = 1;
-  const size = TILE_SIZE - inset * 2;
+  const size = gridSize - inset * 2;
   const stripeStep = 7;
 
   previewTile
@@ -420,11 +422,11 @@ const offsetTileBounds = (bounds: TileBounds, delta: Cell | null) => ({
   maxY: bounds.maxY + (delta?.y ?? 0),
 });
 
-const getLayerResizeHandleCenters = (bounds: TileBounds) => {
-  const left = bounds.minX * TILE_SIZE;
-  const right = (bounds.maxX + 1) * TILE_SIZE;
-  const bottom = bounds.minY * TILE_SIZE;
-  const top = (bounds.maxY + 1) * TILE_SIZE;
+const getLayerResizeHandleCenters = (bounds: TileBounds, gridSize: number) => {
+  const left = bounds.minX * gridSize;
+  const right = (bounds.maxX + 1) * gridSize;
+  const bottom = bounds.minY * gridSize;
+  const top = (bounds.maxY + 1) * gridSize;
   const centerX = (left + right) / 2;
   const centerY = (bottom + top) / 2;
 
@@ -446,10 +448,11 @@ const drawLayerResizeHandles = (
   scale: number,
   hoverHandle: LayerResizeHandle | null,
   activeHandle: LayerResizeHandle | null,
+  gridSize: number,
 ) => {
   const handleSize = LAYER_RESIZE_HANDLE_SIZE / scale;
   const lineWidth = 1.5 / scale;
-  const centers = getLayerResizeHandleCenters(bounds);
+  const centers = getLayerResizeHandleCenters(bounds, gridSize);
 
   for (const handle of LAYER_RESIZE_HANDLES) {
     const center = centers[handle];
@@ -484,6 +487,7 @@ export const usePixiScene = ({
   contextMenu,
   dragDelta,
   erasePreviewCells,
+  gridSize,
   getHost,
   hoverLayerResizeHandle,
   hoverCell,
@@ -557,14 +561,15 @@ export const usePixiScene = ({
       return;
     }
 
-    const width = bounds.width * TILE_SIZE;
-    const height = bounds.height * TILE_SIZE;
+    const currentGridSize = gridSize();
+    const width = bounds.width * currentGridSize;
+    const height = bounds.height * currentGridSize;
     const textureWidth = texture.width || 1;
     const textureHeight = texture.height || 1;
     const sprite = new Sprite(texture);
 
-    sprite.x = bounds.x * TILE_SIZE;
-    sprite.y = (bounds.y + bounds.height) * TILE_SIZE;
+    sprite.x = bounds.x * currentGridSize;
+    sprite.y = (bounds.y + bounds.height) * currentGridSize;
     sprite.scale.set(width / textureWidth, -(height / textureHeight));
     sprite.alpha = RECOGNITION_IMAGE_RESIZE_ALPHA;
 
@@ -591,10 +596,11 @@ export const usePixiScene = ({
 
   const screenToCell = (current: PixiScene, screenPoint: Cell) => {
     const worldPoint = screenToWorld(current, screenPoint);
+    const currentGridSize = gridSize();
 
     return {
-      x: Math.floor(worldPoint.x / TILE_SIZE),
-      y: Math.floor(worldPoint.y / TILE_SIZE),
+      x: Math.floor(worldPoint.x / currentGridSize),
+      y: Math.floor(worldPoint.y / currentGridSize),
     };
   };
 
@@ -612,6 +618,7 @@ export const usePixiScene = ({
 
   const drawGrid = (current: PixiScene) => {
     const host = getHost();
+    const currentGridSize = gridSize();
     const scale = zoom() / 100;
     const lineWidth = 1 / scale;
     const topLeft = screenToWorld(current, { x: 0, y: 0 });
@@ -619,18 +626,20 @@ export const usePixiScene = ({
       x: host.clientWidth,
       y: host.clientHeight,
     });
-    const minX = Math.floor(topLeft.x / TILE_SIZE) * TILE_SIZE;
-    const maxX = Math.ceil(bottomRight.x / TILE_SIZE) * TILE_SIZE;
+    const minX = Math.floor(topLeft.x / currentGridSize) * currentGridSize;
+    const maxX = Math.ceil(bottomRight.x / currentGridSize) * currentGridSize;
     const minY =
-      Math.floor(Math.min(topLeft.y, bottomRight.y) / TILE_SIZE) * TILE_SIZE;
+      Math.floor(Math.min(topLeft.y, bottomRight.y) / currentGridSize) *
+      currentGridSize;
     const maxY =
-      Math.ceil(Math.max(topLeft.y, bottomRight.y) / TILE_SIZE) * TILE_SIZE;
+      Math.ceil(Math.max(topLeft.y, bottomRight.y) / currentGridSize) *
+      currentGridSize;
 
     current.grid.clear();
 
     const gridColor = cssColorToHex(getComputedStyle(getHost()).color);
     const axisColor = cssColorToHex(getComputedStyle(getHost()).borderColor);
-    for (let x = minX; x <= maxX; x += TILE_SIZE) {
+    for (let x = minX; x <= maxX; x += currentGridSize) {
       current.grid
         .moveTo(x, minY)
         .lineTo(x, maxY)
@@ -640,7 +649,7 @@ export const usePixiScene = ({
         });
     }
 
-    for (let y = minY; y <= maxY; y += TILE_SIZE) {
+    for (let y = minY; y <= maxY; y += currentGridSize) {
       current.grid
         .moveTo(minX, y)
         .lineTo(maxX, y)
@@ -652,6 +661,7 @@ export const usePixiScene = ({
   };
 
   const drawTiles = (current: PixiScene) => {
+    const currentGridSize = gridSize();
     const scale = zoom() / 100;
     const lineWidth = 1 / scale;
 
@@ -663,10 +673,10 @@ export const usePixiScene = ({
       const isActiveLayer = layer.id === activeLayerId();
 
       for (const tile of layer.tiles) {
-        const rect = getCellRect(tile);
+        const rect = getCellRect(tile, currentGridSize);
         const tileStyle = getTileStyle(snapshot(), tile.tileId);
         const tileInset = 1;
-        const tileSize = TILE_SIZE - tileInset * 2;
+        const tileSize = currentGridSize - tileInset * 2;
         const borderColor = isActiveLayer ? 0x93c5fd : 0x475569;
         const borderAlpha = isActiveLayer ? 0.55 : 0.32;
         const fillInset = tileInset + lineWidth;
@@ -684,21 +694,29 @@ export const usePixiScene = ({
           createRectSprite(
             rect.x + fillInset,
             rect.y + fillInset,
-            TILE_SIZE - fillInset * 2,
-            TILE_SIZE - fillInset * 2,
+            currentGridSize - fillInset * 2,
+            currentGridSize - fillInset * 2,
             paletteColorToHex(
               tileStyle.backgroundColor,
               DEFAULT_TILE_BACKGROUND_COLOR,
             ),
             tileAlpha,
           ),
-          drawTileIcon(rect, tileStyle, lineWidth, isActiveLayer ? 0.9 : 0.46),
+          drawTileIcon(
+            rect,
+            tileStyle,
+            lineWidth,
+            isActiveLayer ? 0.9 : 0.46,
+            currentGridSize,
+          ),
         );
       }
     }
   };
 
   const drawPreview = (current: PixiScene) => {
+    const currentGridSize = gridSize();
+
     clearContainer(current.preview);
 
     const menuState = contextMenu();
@@ -715,11 +733,16 @@ export const usePixiScene = ({
       const tileStyle = getTileStyle(snapshot(), brushTileId());
 
       for (const cell of Array.isArray(cells) ? cells : cells ? [cells] : []) {
-        const rect = getCellRect(cell);
+        const rect = getCellRect(cell, currentGridSize);
         const previewTile = new Graphics();
 
         previewTile
-          .rect(rect.x + 1, rect.y + 1, TILE_SIZE - 2, TILE_SIZE - 2)
+          .rect(
+            rect.x + 1,
+            rect.y + 1,
+            currentGridSize - 2,
+            currentGridSize - 2,
+          )
           .fill({
             color: paletteColorToHex(
               tileStyle.backgroundColor,
@@ -734,7 +757,7 @@ export const usePixiScene = ({
           });
         current.preview.addChild(
           previewTile,
-          drawTileIcon(rect, tileStyle, lineWidth, 0.72),
+          drawTileIcon(rect, tileStyle, lineWidth, 0.72, currentGridSize),
         );
       }
       return;
@@ -761,12 +784,13 @@ export const usePixiScene = ({
           continue;
         }
 
-        const rect = getCellRect(tile);
+        const rect = getCellRect(tile, currentGridSize);
         current.preview.addChild(
           drawErasePreviewTile(
             rect,
             getTileStyle(snapshot(), tile.tileId),
             lineWidth,
+            currentGridSize,
           ),
         );
       }
@@ -785,15 +809,18 @@ export const usePixiScene = ({
     }
 
     for (const tile of currentClipboard.tiles) {
-      const rect = getCellRect({
-        x: targetCell.x + tile.x,
-        y: targetCell.y + tile.y,
-      });
+      const rect = getCellRect(
+        {
+          x: targetCell.x + tile.x,
+          y: targetCell.y + tile.y,
+        },
+        currentGridSize,
+      );
       const tileStyle = getTileStyle(snapshot(), tile.tileId);
       const previewTile = new Graphics();
 
       previewTile
-        .rect(rect.x + 1, rect.y + 1, TILE_SIZE - 2, TILE_SIZE - 2)
+        .rect(rect.x + 1, rect.y + 1, currentGridSize - 2, currentGridSize - 2)
         .fill({
           color: paletteColorToHex(
             tileStyle.backgroundColor,
@@ -808,12 +835,13 @@ export const usePixiScene = ({
         });
       current.preview.addChild(
         previewTile,
-        drawTileIcon(rect, tileStyle, lineWidth, 0.72),
+        drawTileIcon(rect, tileStyle, lineWidth, 0.72, currentGridSize),
       );
     }
   };
 
   const drawOverlay = (current: PixiScene) => {
+    const currentGridSize = gridSize();
     const scale = zoom() / 100;
     const lineWidth = 2 / scale;
     const delta = dragDelta();
@@ -845,12 +873,12 @@ export const usePixiScene = ({
 
       layerBoundsGraphic
         .rect(
-          displayedLayerBounds.minX * TILE_SIZE,
-          displayedLayerBounds.minY * TILE_SIZE,
+          displayedLayerBounds.minX * currentGridSize,
+          displayedLayerBounds.minY * currentGridSize,
           (displayedLayerBounds.maxX - displayedLayerBounds.minX + 1) *
-            TILE_SIZE,
+            currentGridSize,
           (displayedLayerBounds.maxY - displayedLayerBounds.minY + 1) *
-            TILE_SIZE,
+            currentGridSize,
         )
         .fill({ color: LAYER_BOUNDS_COLOR, alpha: resizePreview ? 0.14 : 0.1 })
         .stroke({ color: LAYER_BOUNDS_COLOR, alpha: 0.72, width: lineWidth });
@@ -858,25 +886,28 @@ export const usePixiScene = ({
     }
 
     if (hover) {
-      const rect = getCellRect(hover);
+      const rect = getCellRect(hover, currentGridSize);
       const hoverCellGraphic = new Graphics();
 
       hoverCellGraphic
-        .rect(rect.x, rect.y, TILE_SIZE, TILE_SIZE)
+        .rect(rect.x, rect.y, currentGridSize, currentGridSize)
         .stroke({ color: 0xf8fafc, alpha: 0.42, width: lineWidth });
       current.overlay.addChild(hoverCellGraphic);
     }
 
     for (const tile of selection()) {
-      const rect = getCellRect({
-        x: tile.x + (delta?.x ?? 0),
-        y: tile.y + (delta?.y ?? 0),
-      });
+      const rect = getCellRect(
+        {
+          x: tile.x + (delta?.x ?? 0),
+          y: tile.y + (delta?.y ?? 0),
+        },
+        currentGridSize,
+      );
       const selectedTile = new Graphics().rect(
         rect.x + 1,
         rect.y + 1,
-        TILE_SIZE - 2,
-        TILE_SIZE - 2,
+        currentGridSize - 2,
+        currentGridSize - 2,
       );
 
       if (delta) {
@@ -903,10 +934,10 @@ export const usePixiScene = ({
 
       selectionRectGraphic
         .rect(
-          minX * TILE_SIZE,
-          minY * TILE_SIZE,
-          (maxX - minX + 1) * TILE_SIZE,
-          (maxY - minY + 1) * TILE_SIZE,
+          minX * currentGridSize,
+          minY * currentGridSize,
+          (maxX - minX + 1) * currentGridSize,
+          (maxY - minY + 1) * currentGridSize,
         )
         .fill({ color: 0x38bdf8, alpha: 0.08 })
         .stroke({ color: 0x38bdf8, alpha: 0.78, width: lineWidth });
@@ -920,6 +951,7 @@ export const usePixiScene = ({
         scale,
         hoverLayerResizeHandle(),
         activeLayerResizeHandle(),
+        currentGridSize,
       );
     }
   };

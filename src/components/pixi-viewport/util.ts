@@ -5,8 +5,6 @@ import type {
   TilePlacement,
 } from '@/models/level';
 
-import { TILE_SIZE } from './constants';
-
 export const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
@@ -100,9 +98,9 @@ export const tileColor = (tileId: number) => {
   return colors[tileId % colors.length] ?? colors[0];
 };
 
-export const getCellRect = (cell: Cell) => ({
-  x: cell.x * TILE_SIZE,
-  y: cell.y * TILE_SIZE,
+export const getCellRect = (cell: Cell, gridSize: number) => ({
+  x: cell.x * gridSize,
+  y: cell.y * gridSize,
 });
 
 export const isEditableTarget = (target: EventTarget | null) => {

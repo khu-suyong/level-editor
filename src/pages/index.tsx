@@ -5,6 +5,7 @@ import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 
 import { uploadRecognitionImage } from '@/api/recognitions';
 import { Dialog } from '@/components/ui/dialog';
+import { clampGridSize, DEFAULT_GRID_SIZE } from '@/helpers/grid-size';
 import { PixiViewport } from '../components/pixi-viewport';
 import type { LevelData, RecognitionPayload } from '../models/level';
 import {
@@ -42,6 +43,7 @@ import { ToolPanel } from './_components/tool-panel';
 const defaultLevel: LevelData = {
   id: 'default-level',
   name: 'level name',
+  gridSize: DEFAULT_GRID_SIZE,
   tileTable: [
     {
       tileId: 0,
@@ -99,7 +101,9 @@ export default function HomePage() {
   const [recognitionApiError, setRecognitionApiError] = createSignal<
     string | null
   >(null);
+  const [draftGridSize, setDraftGridSize] = createSignal<number | null>(null);
   const level = () => snapshot() ?? defaultLevel;
+  const gridSize = () => draftGridSize() ?? level().gridSize;
   const recognitionUploadMutation = createMutation<
     RecognitionPayload[],
     Error,
@@ -183,6 +187,7 @@ export default function HomePage() {
     payload: RecognitionPayload,
   ) => {
     const layerId = await insertRecognitionLayer(payload, {
+      tileSize: level().gridSize,
       viewportWidth: window.innerWidth,
     });
 
@@ -204,6 +209,23 @@ export default function HomePage() {
   };
   const handleCloseRecognitionApiError = () => {
     setRecognitionApiError(null);
+  };
+  const handleGridSizePreviewChange = (nextGridSize: number) => {
+    setDraftGridSize(clampGridSize(nextGridSize));
+  };
+  const handleGridSizeCommit = (nextGridSize: number) => {
+    const committedGridSize = clampGridSize(nextGridSize);
+
+    setDraftGridSize(null);
+
+    if (level().gridSize === committedGridSize) {
+      return;
+    }
+
+    replaceLevel({
+      ...level(),
+      gridSize: committedGridSize,
+    });
   };
 
   createEffect(() => {
@@ -292,7 +314,7 @@ export default function HomePage() {
         bg={'gray.950'}
         aria-label={'Level canvas'}
       >
-        <PixiViewport snapshot={level()} />
+        <PixiViewport snapshot={level()} gridSize={gridSize()} />
       </Box>
 
       <SidePanel
@@ -321,7 +343,13 @@ export default function HomePage() {
         onSelectBrushTile={setSelectedBrushTileId}
         onSelectTool={setSelectedTool}
       />
-      <PropertyPanel zoom={editor().zoom} onZoomChange={setZoom} />
+      <PropertyPanel
+        gridSize={gridSize()}
+        zoom={editor().zoom}
+        onGridSizeCommit={handleGridSizeCommit}
+        onGridSizePreviewChange={handleGridSizePreviewChange}
+        onZoomChange={setZoom}
+      />
       <RecognitionResultDialog
         open={recognitionResultsOpen()}
         payloads={recognitionPayloads()}

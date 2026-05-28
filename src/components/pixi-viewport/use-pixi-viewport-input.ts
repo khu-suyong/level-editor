@@ -4,7 +4,7 @@ import { onCleanup, onMount } from 'solid-js';
 import type { Cell, LayerBounds, TilePlacement } from '@/models/level';
 import { type EditorTool, setSelection } from '@/stores/editor';
 
-import { MAX_ZOOM, MIN_ZOOM, TILE_SIZE } from './constants';
+import { MAX_ZOOM, MIN_ZOOM } from './constants';
 import type {
   ContextMenuState,
   DragState,
@@ -28,6 +28,7 @@ type UsePixiViewportInputParams = {
   actions: PixiEditorActions;
   contextMenu: Accessor<ContextMenuState>;
   getHost: () => HTMLDivElement;
+  gridSize: Accessor<number>;
   hoverCell: Accessor<Cell | null>;
   scene: Accessor<PixiScene | null>;
   sceneApi: Pick<
@@ -78,11 +79,11 @@ const LAYER_RESIZE_HIT_ORDER: LayerResizeHandle[] = [
 ];
 const SELECTION_DRAG_THRESHOLD = 4;
 
-const getLayerResizeHandleCenters = (bounds: LayerBounds) => {
-  const left = bounds.x * TILE_SIZE;
-  const right = (bounds.x + bounds.width) * TILE_SIZE;
-  const bottom = bounds.y * TILE_SIZE;
-  const top = (bounds.y + bounds.height) * TILE_SIZE;
+const getLayerResizeHandleCenters = (bounds: LayerBounds, gridSize: number) => {
+  const left = bounds.x * gridSize;
+  const right = (bounds.x + bounds.width) * gridSize;
+  const bottom = bounds.y * gridSize;
+  const top = (bounds.y + bounds.height) * gridSize;
   const centerX = (left + right) / 2;
   const centerY = (bottom + top) / 2;
 
@@ -136,6 +137,7 @@ export const usePixiViewportInput = ({
   actions,
   contextMenu,
   getHost,
+  gridSize,
   hoverCell,
   scene,
   sceneApi,
@@ -232,7 +234,7 @@ export const usePixiViewportInput = ({
 
     const worldPoint = sceneApi.screenToWorld(current, screenPoint);
     const hitRadius = LAYER_RESIZE_HANDLE_HIT_SIZE / (zoom() / 100) / 2;
-    const centers = getLayerResizeHandleCenters(bounds);
+    const centers = getLayerResizeHandleCenters(bounds, gridSize());
 
     for (const handle of LAYER_RESIZE_HIT_ORDER) {
       const center = centers[handle];
@@ -737,7 +739,7 @@ export const usePixiViewportInput = ({
   };
 
   const handleKeyboardPan = (event: KeyboardEvent, current: PixiScene) => {
-    const panStep = event.shiftKey ? TILE_SIZE * 4 : TILE_SIZE;
+    const panStep = event.shiftKey ? gridSize() * 4 : gridSize();
 
     if (event.key === 'ArrowLeft') {
       event.preventDefault();

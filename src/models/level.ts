@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+import {
+  DEFAULT_GRID_SIZE,
+  GRID_SIZE_MAX,
+  GRID_SIZE_MIN,
+} from '@/helpers/grid-size';
+
 const nonEmptyStringSchema = z.string().min(1);
 const tileNameSchema = z.string().trim().min(1);
 const finiteNumberSchema = z.number().finite();
@@ -124,6 +130,12 @@ export const LevelDataSchema = z
   .object({
     id: nonEmptyStringSchema,
     name: nonEmptyStringSchema,
+    gridSize: z
+      .number()
+      .int()
+      .min(GRID_SIZE_MIN)
+      .max(GRID_SIZE_MAX)
+      .default(DEFAULT_GRID_SIZE),
     tileTable: TileMappingSchema.array(),
     layers: LevelLayerSchema.array(),
   })

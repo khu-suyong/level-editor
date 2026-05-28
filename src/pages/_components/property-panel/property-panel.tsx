@@ -5,14 +5,24 @@ import {
   Plus,
   RotateCcw,
   SlidersHorizontal,
+  ZoomIn,
 } from 'lucide-solid';
-
 import { Icon } from '@/components/ui/icon';
 import { Slider } from '@/components/ui/slider';
+import {
+  clampGridSize,
+  DEFAULT_GRID_SIZE,
+  GRID_SIZE_MAX,
+  GRID_SIZE_MIN,
+  GRID_SIZE_STEP,
+} from '@/helpers/grid-size';
 import * as styles from './property-panel.css';
 
 type PropertyPanelProps = {
+  gridSize: number;
   zoom: number;
+  onGridSizeCommit: (gridSize: number) => void;
+  onGridSizePreviewChange: (gridSize: number) => void;
   onZoomChange: (zoom: number) => void;
 };
 
@@ -25,6 +35,10 @@ const clampZoom = (zoom: number) =>
   Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom));
 
 export function PropertyPanel(props: PropertyPanelProps) {
+  const handleGridSizeStep = (delta: number) => {
+    props.onGridSizeCommit(clampGridSize(props.gridSize + delta));
+  };
+
   const handleZoomStep = (delta: number) => {
     props.onZoomChange(clampZoom(props.zoom + delta));
   };
@@ -60,7 +74,63 @@ export function PropertyPanel(props: PropertyPanelProps) {
         media={<Icon name={Grid3X3} />}
         size={'sm'}
         title={'Grid Size'}
-        action={<Box text={'caption'}>{'32px'}</Box>}
+        action={<Box text={'caption'}>{`${props.gridSize}px`}</Box>}
+      />
+      <Box>
+        <Slider
+          aria-label={'Grid size'}
+          min={GRID_SIZE_MIN}
+          max={GRID_SIZE_MAX}
+          step={GRID_SIZE_STEP}
+          value={props.gridSize}
+          onChange={(value: number) =>
+            props.onGridSizePreviewChange(clampGridSize(value))
+          }
+          onCommit={(value: number) =>
+            props.onGridSizeCommit(clampGridSize(value))
+          }
+        />
+        <Box direction={'row'} align={'center'} justify={'space-between'}>
+          <Box class={styles.controlValue} text={'body'}>
+            {`${props.gridSize}px`}
+          </Box>
+          <Box direction={'row'} gap={'xxs'}>
+            <Button
+              variant={'ghost'}
+              type={'icon'}
+              size={'sm'}
+              aria-label={'Decrease grid size'}
+              onClick={() => handleGridSizeStep(-GRID_SIZE_STEP)}
+            >
+              <Icon name={Minus} />
+            </Button>
+            <Button
+              variant={'ghost'}
+              type={'icon'}
+              size={'sm'}
+              aria-label={'Reset grid size'}
+              onClick={() => props.onGridSizeCommit(DEFAULT_GRID_SIZE)}
+            >
+              <Icon name={RotateCcw} />
+            </Button>
+            <Button
+              variant={'ghost'}
+              type={'icon'}
+              size={'sm'}
+              aria-label={'Increase grid size'}
+              onClick={() => handleGridSizeStep(GRID_SIZE_STEP)}
+            >
+              <Icon name={Plus} />
+            </Button>
+          </Box>
+        </Box>
+      </Box>
+
+      <Item
+        media={<Icon name={ZoomIn} />}
+        size={'sm'}
+        title={'Zoom'}
+        action={<Box text={'caption'}>{`${props.zoom}%`}</Box>}
       />
       <Box>
         <Slider
@@ -72,7 +142,7 @@ export function PropertyPanel(props: PropertyPanelProps) {
           onChange={(value: number) => props.onZoomChange(clampZoom(value))}
         />
         <Box direction={'row'} align={'center'} justify={'space-between'}>
-          <Box class={styles.zoomValue} text={'body'}>
+          <Box class={styles.controlValue} text={'body'}>
             {`${props.zoom}%`}
           </Box>
           <Box direction={'row'} gap={'xxs'}>

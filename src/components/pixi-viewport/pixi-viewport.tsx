@@ -15,6 +15,7 @@ import { usePixiScene } from './use-pixi-scene';
 import { usePixiViewportInput } from './use-pixi-viewport-input';
 
 export type PixiViewportProps = {
+  gridSize: number;
   snapshot: LevelData;
 };
 
@@ -51,6 +52,7 @@ export const PixiViewport = (props: PixiViewportProps) => {
   const selectedLayerId = () => editor().selectedLayerId;
   const selectedTool = () => editor().selectedTool;
   const selection = () => editor().selection;
+  const gridSize = () => props.gridSize;
   const snapshot = () => props.snapshot;
   const zoom = () => editor().zoom;
   const getHost = () => host;
@@ -95,6 +97,7 @@ export const PixiViewport = (props: PixiViewportProps) => {
     contextMenu,
     dragDelta,
     erasePreviewCells,
+    gridSize,
     getHost,
     activeLayerResizeHandle,
     hoverLayerResizeHandle,
@@ -114,6 +117,7 @@ export const PixiViewport = (props: PixiViewportProps) => {
     actions,
     contextMenu,
     getHost,
+    gridSize,
     hoverCell,
     scene: sceneApi.scene,
     sceneApi,

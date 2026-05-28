@@ -1,3 +1,4 @@
+import { clampGridSize, DEFAULT_GRID_SIZE } from '@/helpers/grid-size';
 import type {
   Cell,
   CvShape,
@@ -52,7 +53,6 @@ export type RecognitionLayerBuildResult = {
   tileMappings: TileMapping[];
 };
 
-const DEFAULT_TILE_SIZE = 32;
 const DEFAULT_VIEWPORT_WIDTH = 1024;
 const DARK_PIXEL_COVERAGE_THRESHOLD = 0.008;
 const DARK_PIXEL_LUMINANCE_THRESHOLD = 200;
@@ -99,7 +99,7 @@ const getLayerBounds = (
   payload: RecognitionPayload,
   options: RecognitionLayerBuildOptions,
 ): LayerBounds => {
-  const tileSize = options.tileSize ?? DEFAULT_TILE_SIZE;
+  const tileSize = clampGridSize(options.tileSize ?? DEFAULT_GRID_SIZE);
   const viewportWidth = Math.max(
     options.viewportWidth ?? DEFAULT_VIEWPORT_WIDTH,
     tileSize,
