@@ -1,33 +1,15 @@
-import { Box, Button, Tooltip } from '@suis-ui/kit';
-import {
-  Eraser,
-  Hand,
-  MousePointer2,
-  Paintbrush,
-  Plus,
-  Redo2,
-  Undo2,
-} from 'lucide-solid';
+import { Box, Button, Tooltip, vars } from '@suis-ui/kit';
+import { Plus, Redo2, Undo2 } from 'lucide-solid';
 import { Flip } from 'solid-flip';
 import { For, type JSX, Show } from 'solid-js';
 
-import { Icon, type IconType } from '@/components/ui/icon';
 import type { TileMapping } from '@/models/level';
 import { TilePreview } from '@/pages/_components/tile-preview';
 import type { EditorTool } from '@/stores/editor';
 import { getTileDisplayName } from '@/stores/palette';
+import { tools } from './tool-panel.constants';
 import * as styles from './tool-panel.css';
-
-const tools = [
-  { id: 'select', label: '선택', icon: MousePointer2 },
-  { id: 'brush', label: '브러시', icon: Paintbrush },
-  { id: 'erase', label: '지우개', icon: Eraser },
-  { id: 'pan', label: '팬', icon: Hand },
-] as const satisfies ReadonlyArray<{
-  id: EditorTool;
-  label: string;
-  icon: IconType;
-}>;
+import { ToolbarIconButton } from './toolbar-icon-button';
 
 type ToolPanelProps = {
   canRedo: boolean;
@@ -42,38 +24,6 @@ type ToolPanelProps = {
   onSelectBrushTile: (tileId: number) => void;
   onSelectTool: (selectedTool: EditorTool) => void;
 };
-
-type ToolbarIconButtonProps = {
-  active?: boolean;
-  disabled?: boolean;
-  icon: IconType;
-  label: string;
-  onClick: () => void;
-};
-
-const ToolbarIconButton = (props: ToolbarIconButtonProps) => (
-  <Tooltip
-    content={<Box text={'caption'}>{props.label}</Box>}
-    placement={'top'}
-    withArrow
-    offset={12}
-  >
-    <Box as={'span'} direction={'row'}>
-      <Button
-        variant={'ghost'}
-        size={'md'}
-        p={'sm'}
-        type={'icon'}
-        active={props.active}
-        disabled={props.disabled}
-        aria-label={props.label}
-        onClick={props.onClick}
-      >
-        <Icon name={props.icon} />
-      </Button>
-    </Box>
-  </Tooltip>
-);
 
 export function ToolPanel(props: ToolPanelProps) {
   let recognitionImageInput: HTMLInputElement | undefined;
@@ -96,7 +46,18 @@ export function ToolPanel(props: ToolPanelProps) {
   };
 
   return (
-    <Box as={'aside'} class={styles.containerStyle}>
+    <Box
+      as={'aside'}
+      class={styles.containerStyle}
+      pos={'fixed'}
+      z={10}
+      left={'50%'}
+      bottom={vars.size.space.lg}
+      direction={'row'}
+      justify={'center'}
+      align={'center'}
+      gap={'sm'}
+    >
       <input
         ref={(element) => {
           recognitionImageInput = element;

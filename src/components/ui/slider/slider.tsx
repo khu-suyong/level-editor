@@ -1,8 +1,6 @@
 import { Box, type BoxProps } from '@suis-ui/kit';
 import { splitProps } from 'solid-js';
 
-import * as styles from './slider.css';
-
 export type SliderProps = Omit<
   BoxProps<'div'>,
   'as' | 'onChange' | 'onInput'
@@ -23,16 +21,15 @@ export const Slider = (props: SliderProps) => {
     'onChange',
     'step',
     'value',
+    'w',
   ]);
 
   return (
     <Box
       {...rest}
-      classList={{
-        [styles.slider]: true,
-        [local.class ?? '']: !!local.class,
-        ...local.classList,
-      }}
+      w={local.w ?? '100%'}
+      class={local.class}
+      classList={local.classList}
     >
       <input
         type={'range'}

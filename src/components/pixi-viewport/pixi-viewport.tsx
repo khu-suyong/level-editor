@@ -1,16 +1,9 @@
 import { useStore } from '@nanostores/solid';
-import { Box, Item, Popup } from '@suis-ui/kit';
-import {
-  ClipboardPaste,
-  Copy,
-  RefreshCcw,
-  SquareDashedMousePointer,
-  Trash2,
-} from 'lucide-solid';
+import { Box } from '@suis-ui/kit';
 import { createSignal } from 'solid-js';
 import type { Cell, LayerBounds, LevelData } from '@/models/level';
 import { editorStore, setZoom } from '@/stores/editor';
-import { Icon } from '../ui/icon';
+import { PixiContextMenu } from './context-menu';
 import * as styles from './pixi-viewport.css';
 import type {
   ContextMenuState,
@@ -145,8 +138,10 @@ export const PixiViewport = (props: PixiViewportProps) => {
 
   return (
     <>
-      <div
-        ref={host}
+      <Box
+        ref={(element) => {
+          host = element;
+        }}
         class={styles.viewport}
         classList={{
           [styles.isPanTool]: selectedTool() === 'pan',
@@ -158,121 +153,27 @@ export const PixiViewport = (props: PixiViewportProps) => {
           [styles.isResizeNorthEastSouthWest]: hasLayerResizeCursor('ne', 'sw'),
           [styles.isResizeNorthWestSouthEast]: hasLayerResizeCursor('nw', 'se'),
         }}
+        pos={'absolute'}
+        top={'0'}
+        right={'0'}
+        bottom={'0'}
+        left={'0'}
+        bg={'surface.main'}
+        c={'surface.high'}
+        bc={'surface.higher'}
+        overflow={'hidden'}
       />
-      <Popup
-        open={contextMenu().open}
-        placement={'bottom-start'}
-        element={
-          <Box
-            minW={'20rem'}
-            class={styles.contextMenuContent}
-            role={'menu'}
-            align={'stretch'}
-            bg={'surface.main'}
-            bd={'md'}
-            bc={'surface.high'}
-            r={'md'}
-            shadow={'lg'}
-          >
-            <Box as={'ul'} class={styles.contextMenuGroup}>
-              <Box as={'li'} role={'none'}>
-                <Item
-                  class={styles.contextMenuHeader}
-                  role={'presentation'}
-                  title={'선택된 셀'}
-                  action={`${contextMenu().cell.x}, ${contextMenu().cell.y}`}
-                />
-              </Box>
-            </Box>
-            <Box as={'ul'} class={styles.contextMenuGroup}>
-              <Box as={'li'} role={'none'}>
-                <Item
-                  as={'button'}
-                  class={styles.contextMenuItem}
-                  media={<Icon name={Copy} />}
-                  title={'복사'}
-                  action={'⌘C'}
-                  role={'menuitem'}
-                  props={{
-                    disabled: selection().length === 0,
-                    type: 'button',
-                  }}
-                  onClick={input.handleMenuCopy}
-                />
-              </Box>
-              <Box as={'li'} role={'none'}>
-                <Item
-                  as={'button'}
-                  class={styles.contextMenuItem}
-                  media={<Icon name={ClipboardPaste} />}
-                  title={'붙여넣기'}
-                  action={'⌘V'}
-                  role={'menuitem'}
-                  props={{
-                    disabled: !clipboard(),
-                    type: 'button',
-                  }}
-                  onClick={input.handleMenuPaste}
-                />
-              </Box>
-              <Box as={'li'} role={'none'}>
-                <Item
-                  as={'button'}
-                  class={styles.contextMenuItem}
-                  media={<Icon name={Trash2} />}
-                  title={'삭제'}
-                  action={'⌫'}
-                  role={'menuitem'}
-                  props={{
-                    disabled: isDeleteDisabled(),
-                    type: 'button',
-                  }}
-                  onClick={input.handleMenuDelete}
-                />
-              </Box>
-            </Box>
-            <Box as={'ul'} class={styles.contextMenuGroup}>
-              <Box as={'li'} role={'none'}>
-                <Item
-                  as={'button'}
-                  class={styles.contextMenuItem}
-                  media={<Icon name={SquareDashedMousePointer} />}
-                  title={'선택 해제'}
-                  action={'⌘D'}
-                  role={'menuitem'}
-                  props={{
-                    disabled: selection().length === 0,
-                    type: 'button',
-                  }}
-                  onClick={input.handleClearSelection}
-                />
-              </Box>
-              <Box as={'li'} role={'none'}>
-                <Item
-                  as={'button'}
-                  class={styles.contextMenuItem}
-                  media={<Icon name={RefreshCcw} />}
-                  title={'뷰 초기화'}
-                  action={'⌘R'}
-                  role={'menuitem'}
-                  props={{
-                    type: 'button',
-                  }}
-                  onClick={input.handleResetView}
-                />
-              </Box>
-            </Box>
-          </Box>
-        }
-      >
-        <div
-          class={styles.contextMenu}
-          style={{
-            left: `${contextMenu().pointerX}px`,
-            top: `${contextMenu().pointerY}px`,
-          }}
-        />
-      </Popup>
+      <PixiContextMenu
+        clipboardAvailable={Boolean(clipboard())}
+        contextMenu={contextMenu()}
+        deleteDisabled={isDeleteDisabled()}
+        selectionCount={selection().length}
+        onClearSelection={input.handleClearSelection}
+        onCopy={input.handleMenuCopy}
+        onDelete={input.handleMenuDelete}
+        onPaste={input.handleMenuPaste}
+        onResetView={input.handleResetView}
+      />
     </>
   );
 };

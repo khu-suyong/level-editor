@@ -1,11 +1,11 @@
-import { Box, Button, Input, Item, Select } from '@suis-ui/kit';
+import { Box, Button, Input, Item, Select, vars } from '@suis-ui/kit';
 import { Save, ScanSearch } from 'lucide-solid';
 import { createEffect, createMemo, createSignal } from 'solid-js';
 
 import { Dialog } from '@/components/ui/dialog';
 import { Icon } from '@/components/ui/icon';
 import type { RecognitionPayload } from '@/models/level';
-import * as styles from './recognition-result-dialog.css';
+import { payloadPreviewStyle } from './recognition-result-dialog.css';
 
 type RecognitionResultDialogProps = {
   open: boolean;
@@ -68,6 +68,17 @@ export const RecognitionResultDialog = (
     props.selectedIndex === null ? null : String(props.selectedIndex);
   const getOptionLabel = (value: string) =>
     options().find((option) => option.value === value)?.label ?? value;
+  const statusColor = () => {
+    if (insertStatus()?.type === 'error') {
+      return 'error.main';
+    }
+
+    if (insertStatus()?.type === 'success') {
+      return 'success.main';
+    }
+
+    return 'text.caption';
+  };
   const handleSelectValue = (value: string | null) => {
     if (value === null) {
       props.onSelectIndex(null);
@@ -150,7 +161,7 @@ export const RecognitionResultDialog = (
         </>
       }
     >
-      <Box class={styles.content} gap={'sm'}>
+      <Box w={'32rem'} maxW={'calc(100vw - 4rem)'} gap={'sm'}>
         <Item
           media={<Icon name={ScanSearch} />}
           size={'sm'}
@@ -176,7 +187,10 @@ export const RecognitionResultDialog = (
         />
         <Input
           as={'textarea'}
-          class={styles.payloadPreview}
+          class={payloadPreviewStyle}
+          w={'100%'}
+          minH={'16rem'}
+          maxH={'50vh'}
           value={
             selectedPayload()
               ? formatPayload(selectedPayload() as RecognitionPayload)
@@ -186,13 +200,9 @@ export const RecognitionResultDialog = (
           spellcheck={false}
         />
         <Box
-          classList={{
-            [styles.status]: true,
-            [styles.statusError]: insertStatus()?.type === 'error',
-            [styles.statusSuccess]: insertStatus()?.type === 'success',
-          }}
+          minH={vars.font.caption.lineHeight}
           text={'caption'}
-          c={'text.caption'}
+          c={statusColor()}
         >
           {insertStatus()?.message ??
             (props.payloads.length > 0

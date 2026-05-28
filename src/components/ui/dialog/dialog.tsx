@@ -62,6 +62,10 @@ export const Dialog = (props: DialogProps) => {
         <Box
           class={backdropStyle}
           role={'presentation'}
+          w={'100vw'}
+          h={'100vh'}
+          align={'center'}
+          justify={'center'}
           onMouseDown={handleBackdropMouseDown}
         >
           <FocusManager
@@ -109,7 +113,16 @@ export const Dialog = (props: DialogProps) => {
       }
     >
       <Portal>
-        <span class={anchorStyle} aria-hidden={true} />
+        <Box
+          as={'span'}
+          class={anchorStyle}
+          pos={'fixed'}
+          top={'0'}
+          left={'0'}
+          w={'0'}
+          h={'0'}
+          aria-hidden={true}
+        />
       </Portal>
     </Popup>
   );

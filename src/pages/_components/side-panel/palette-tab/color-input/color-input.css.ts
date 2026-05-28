@@ -13,3 +13,10 @@ export const colorInputStyle = style({
     },
   },
 });
+
+export const colorValueStyle = style({
+  fontFamily:
+    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+});

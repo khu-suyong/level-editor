@@ -1,4 +1,4 @@
-import { Box, Button } from '@suis-ui/kit';
+import { Box, Button, vars } from '@suis-ui/kit';
 import { Menu } from 'lucide-solid';
 import { createSignal, For } from 'solid-js';
 
@@ -39,8 +39,15 @@ export const SidePanel = (props: SidePanelProps) => {
     <Box
       as={'aside'}
       class={styles.panel}
+      pos={'absolute'}
+      z={10}
+      top={vars.size.space.lg}
+      left={vars.size.space.lg}
       direction={'column'}
       gap={'md'}
+      w={'26rem'}
+      maxH={`calc(100vh - (${vars.size.space.lg} * 2))`}
+      overflow={'auto'}
       bg={'surface.high'}
       bc={'surface.higher'}
       bd={'thin'}
@@ -82,15 +89,20 @@ export const SidePanel = (props: SidePanelProps) => {
           )}
         </For>
       </Box>
-      <Box class={styles.pagerViewport}>
+      <Box minW={'0'} overflow={'xHidden'}>
         <Box
           class={styles.pagerTrack}
+          direction={'row'}
+          align={'flex-start'}
+          w={'200%'}
           style={{
             transform: `translateX(${activeTabIndex() * -50}%)`,
           }}
         >
           <Box
-            class={styles.pagerPage}
+            w={'50%'}
+            minW={'0'}
+            flex={'0 0 50%'}
             aria-hidden={activeTab() !== 'layer'}
             style={{
               'pointer-events': activeTab() === 'layer' ? 'auto' : 'none',
@@ -108,7 +120,9 @@ export const SidePanel = (props: SidePanelProps) => {
             />
           </Box>
           <Box
-            class={styles.pagerPage}
+            w={'50%'}
+            minW={'0'}
+            flex={'0 0 50%'}
             aria-hidden={activeTab() !== 'palette'}
             style={{
               'pointer-events': activeTab() === 'palette' ? 'auto' : 'none',

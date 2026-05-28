@@ -38,7 +38,6 @@ import { PropertyPanel } from './_components/property-panel';
 import { RecognitionResultDialog } from './_components/recognition-result-dialog';
 import { SidePanel } from './_components/side-panel';
 import { ToolPanel } from './_components/tool-panel';
-import * as styles from './index.css';
 
 const defaultLevel: LevelData = {
   id: 'default-level',
@@ -273,14 +272,23 @@ export default function HomePage() {
   return (
     <Box
       as={'main'}
-      class={styles.shell}
+      pos={'relative'}
+      w={'100vw'}
+      h={'100vh'}
+      overflow={'hidden'}
       bg={'surface.main'}
       c={'text.main'}
       z={'0'}
     >
       <Box
         as={'section'}
-        class={styles.canvasLayer}
+        pos={'absolute'}
+        top={'0'}
+        right={'0'}
+        bottom={'0'}
+        left={'0'}
+        minW={'0'}
+        minH={'0'}
         bg={'gray.950'}
         aria-label={'Level canvas'}
       >

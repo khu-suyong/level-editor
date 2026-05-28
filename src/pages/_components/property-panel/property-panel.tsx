@@ -1,4 +1,4 @@
-import { Box, Button, Item } from '@suis-ui/kit';
+import { Box, Button, Item, vars } from '@suis-ui/kit';
 import {
   Grid3X3,
   Minus,
@@ -33,8 +33,15 @@ export function PropertyPanel(props: PropertyPanelProps) {
     <Box
       as={'aside'}
       class={styles.panel}
+      pos={'absolute'}
+      z={10}
+      top={vars.size.space.lg}
+      right={vars.size.space.lg}
       direction={'column'}
       gap={'sm'}
+      w={'22rem'}
+      maxH={`calc(100vh - (${vars.size.space.lg} * 2))`}
+      overflow={'auto'}
       bg={'surface.high'}
       bc={'surface.higher'}
       bd={'thin'}
@@ -65,7 +72,9 @@ export function PropertyPanel(props: PropertyPanelProps) {
           onChange={(value: number) => props.onZoomChange(clampZoom(value))}
         />
         <Box direction={'row'} align={'center'} justify={'space-between'}>
-          <Box class={styles.zoomValue}>{`${props.zoom}%`}</Box>
+          <Box class={styles.zoomValue} text={'body'}>
+            {`${props.zoom}%`}
+          </Box>
           <Box direction={'row'} gap={'xxs'}>
             <Button
               variant={'ghost'}
