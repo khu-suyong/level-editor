@@ -14,10 +14,9 @@ import type {
 import { currentSnapshot } from './history';
 
 export const CV_SHAPE_PRESETS = [
+  'structure',
   'triangle',
-  'rectangle',
-  'circle',
-  'line',
+  'star',
 ] as const satisfies readonly CvShape[];
 
 export const TILE_ICON_PRESETS = [
@@ -124,7 +123,19 @@ export const cloneLevelData = (level: LevelData): LevelData => ({
 
 export const isHexColor = (value: string) => HEX_COLOR_PATTERN.test(value);
 
-export const normalizeCvShape = (value: string) => value.trim().toLowerCase();
+export const normalizeCvShape = (value: string) => {
+  const normalizedValue = value.trim().toLowerCase();
+
+  if (
+    normalizedValue === 'rectangle' ||
+    normalizedValue === 'circle' ||
+    normalizedValue === 'line'
+  ) {
+    return 'structure';
+  }
+
+  return normalizedValue;
+};
 
 export const isCvShape = (value: string): value is CvShape =>
   (CV_SHAPE_PRESETS as readonly string[]).includes(value);

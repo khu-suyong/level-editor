@@ -22,12 +22,7 @@ export const TileIconSchema = z.enum([
 ]);
 export type TileIcon = z.infer<typeof TileIconSchema>;
 
-export const CvShapeSchema = z.enum([
-  'triangle',
-  'rectangle',
-  'circle',
-  'line',
-]);
+export const CvShapeSchema = z.enum(['structure', 'triangle', 'star']);
 export type CvShape = z.infer<typeof CvShapeSchema>;
 
 export type LayerBounds = z.infer<typeof LayerBoundsSchema>;

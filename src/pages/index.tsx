@@ -34,6 +34,11 @@ import {
   moveLayerInLevel,
   sortLayersForDisplay,
 } from '../stores/layers';
+import {
+  getLevelFileName,
+  parseLevelFileText,
+  serializeLevelData,
+} from '../stores/level-file';
 import { insertRecognitionLayer } from '../stores/recognition';
 import { PropertyPanel } from './_components/property-panel';
 import { RecognitionResultDialog } from './_components/recognition-result-dialog';
@@ -85,6 +90,11 @@ const isEditableTarget = (target: EventTarget | null) => {
   );
 };
 
+type PendingLevelFile = {
+  fileName: string;
+  level: LevelData;
+};
+
 export default function HomePage() {
   const editor = useStore(editorStore);
   const snapshot = useStore(currentSnapshot);
@@ -101,6 +111,10 @@ export default function HomePage() {
   const [recognitionApiError, setRecognitionApiError] = createSignal<
     string | null
   >(null);
+  const [levelFileLoadPending, setLevelFileLoadPending] = createSignal(false);
+  const [pendingLevelFile, setPendingLevelFile] =
+    createSignal<PendingLevelFile | null>(null);
+  const [levelFileError, setLevelFileError] = createSignal<string | null>(null);
   const [draftGridSize, setDraftGridSize] = createSignal<number | null>(null);
   const level = () => snapshot() ?? defaultLevel;
   const gridSize = () => draftGridSize() ?? level().gridSize;
@@ -142,6 +156,65 @@ export default function HomePage() {
   const handleApplyLevel = (nextLevel: LevelData) => {
     replaceLevel(nextLevel);
     setSelection([]);
+  };
+  const handleSaveLevel = () => {
+    const currentLevel = level();
+    const blob = new Blob([serializeLevelData(currentLevel)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = getLevelFileName(currentLevel);
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+  const handleLoadLevelFile = async (file: File) => {
+    setLevelFileError(null);
+    setPendingLevelFile(null);
+    setLevelFileLoadPending(true);
+
+    try {
+      const text = await file.text();
+      const nextLevel = parseLevelFileText(text);
+
+      setPendingLevelFile({
+        fileName: file.name,
+        level: nextLevel,
+      });
+    } catch (error) {
+      setLevelFileError(
+        error instanceof Error
+          ? error.message
+          : '레벨 파일을 불러오지 못했습니다.',
+      );
+    } finally {
+      setLevelFileLoadPending(false);
+    }
+  };
+  const handleCancelLoadLevel = () => {
+    setPendingLevelFile(null);
+  };
+  const handleConfirmLoadLevel = () => {
+    const pending = pendingLevelFile();
+
+    if (!pending) {
+      return;
+    }
+
+    initializeHistory(pending.level);
+    setActiveLayerId(
+      sortLayersForDisplay(pending.level.layers)[0]?.id ?? 'base',
+    );
+    setSelectedLayerId(null);
+    setSelection([]);
+    setPendingLevelFile(null);
+  };
+  const handleCloseLevelFileError = () => {
+    setLevelFileError(null);
   };
   const handleAddLayer = () => {
     const result = addEmptyLayerToBottom(level());
@@ -319,13 +392,16 @@ export default function HomePage() {
 
       <SidePanel
         activeLayerId={editor().activeLayerId}
+        levelLoadPending={levelFileLoadPending()}
         selectedBrushTileId={editor().selectedBrushTileId}
         selectedLayerId={editor().selectedLayerId}
         level={level()}
         onApplyLevel={handleApplyLevel}
         onAddLayer={handleAddLayer}
         onDeleteLayer={handleDeleteLayer}
+        onLoadLevelFile={handleLoadLevelFile}
         onMoveLayer={handleMoveLayer}
+        onSaveLevel={handleSaveLevel}
         onSelectActiveLayer={handleSelectLayer}
         onSelectBrushTile={setSelectedBrushTileId}
         onSelectLayerRect={handleSelectLayerRect}
@@ -358,6 +434,45 @@ export default function HomePage() {
         onInsertPayload={handleInsertRecognitionPayload}
         onSelectIndex={setSelectedRecognitionIndex}
       />
+      <Dialog
+        open={Boolean(pendingLevelFile())}
+        title={'레벨 불러오기'}
+        description={
+          pendingLevelFile()
+            ? `${pendingLevelFile()?.fileName} 파일로 현재 레벨을 교체합니다.`
+            : undefined
+        }
+        onClose={handleCancelLoadLevel}
+        footer={
+          <>
+            <Button variant={'ghost'} onClick={handleCancelLoadLevel}>
+              {'취소'}
+            </Button>
+            <Button variant={'primary'} onClick={handleConfirmLoadLevel}>
+              {'불러오기'}
+            </Button>
+          </>
+        }
+      >
+        <Box text={'body'}>
+          {
+            '현재 편집 내용과 실행 취소 기록이 불러온 레벨 기준으로 초기화됩니다.'
+          }
+        </Box>
+      </Dialog>
+      <Dialog
+        open={Boolean(levelFileError())}
+        title={'레벨 파일 오류'}
+        description={levelFileError() ?? undefined}
+        onClose={handleCloseLevelFileError}
+        footer={
+          <Button variant={'primary'} onClick={handleCloseLevelFileError}>
+            {'확인'}
+          </Button>
+        }
+      >
+        <Box text={'body'}>{'레벨 파일을 불러오지 못했습니다.'}</Box>
+      </Dialog>
       <Dialog
         open={Boolean(recognitionApiError())}
         title={'인식 API 실패'}

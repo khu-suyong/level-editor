@@ -26,7 +26,7 @@ export const recognitionDebugSamples = [
       objects: [
         {
           id: 'circle-a',
-          shape: 'circle',
+          shape: 'star',
           x: 120,
           y: 140,
           width: 160,
@@ -44,7 +44,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'line-a',
-          shape: 'line',
+          shape: 'structure',
           x: 600,
           y: 180,
           width: 360,
@@ -53,7 +53,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'rectangle-a',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 160,
           y: 480,
           width: 160,
@@ -62,7 +62,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'rectangle-b',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 480,
           y: 500,
           width: 180,
@@ -71,7 +71,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'rectangle-c',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 760,
           y: 460,
           width: 260,
@@ -95,7 +95,7 @@ export const recognitionDebugSamples = [
       objects: [
         {
           id: 'floor-01',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 120,
           y: 640,
           width: 1360,
@@ -109,7 +109,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'left-wall',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 120,
           y: 120,
           width: 96,
@@ -118,7 +118,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'right-wall',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 1384,
           y: 120,
           width: 96,
@@ -127,7 +127,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'door-01',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 720,
           y: 520,
           width: 180,
@@ -151,7 +151,7 @@ export const recognitionDebugSamples = [
       objects: [
         {
           id: 'shaft-wall-left',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 120,
           y: 160,
           width: 100,
@@ -160,7 +160,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'shaft-wall-right',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 680,
           y: 160,
           width: 100,
@@ -169,7 +169,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'platform-top',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 240,
           y: 280,
           width: 420,
@@ -178,7 +178,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'platform-bottom',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 240,
           y: 1180,
           width: 420,
@@ -202,7 +202,7 @@ export const recognitionDebugSamples = [
       objects: [
         {
           id: 'base-floor',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 160,
           y: 520,
           width: 880,
@@ -220,7 +220,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'spawn-over-hazard',
-          shape: 'circle',
+          shape: 'star',
           x: 580,
           y: 540,
           width: 120,
@@ -244,7 +244,7 @@ export const recognitionDebugSamples = [
       objects: [
         {
           id: 'rectangle-window',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 200,
           y: 180,
           width: 200,
@@ -253,7 +253,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'rectangle-crate',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 480,
           y: 640,
           width: 180,
@@ -262,7 +262,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'circle-enemy',
-          shape: 'circle',
+          shape: 'star',
           x: 760,
           y: 600,
           width: 140,
@@ -271,7 +271,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'line-exit',
-          shape: 'line',
+          shape: 'structure',
           x: 1080,
           y: 480,
           width: 160,
@@ -296,7 +296,7 @@ export const recognitionDebugSamples = [
       objects: [
         {
           id: 'ground-line',
-          shape: 'line',
+          shape: 'structure',
           x: 24,
           y: 310,
           width: 592,
@@ -305,7 +305,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'left-platform',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 48,
           y: 270,
           width: 144,
@@ -314,7 +314,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'center-platform',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 244,
           y: 238,
           width: 120,
@@ -323,7 +323,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'pipe',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 506,
           y: 210,
           width: 62,
@@ -332,7 +332,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'enemy',
-          shape: 'circle',
+          shape: 'star',
           x: 370,
           y: 276,
           width: 36,
@@ -375,7 +375,7 @@ export const recognitionDebugSamples = [
       objects: [
         {
           id: 'left-ground-line',
-          shape: 'line',
+          shape: 'structure',
           x: 24,
           y: 312,
           width: 270,
@@ -384,7 +384,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'right-ground-line',
-          shape: 'line',
+          shape: 'structure',
           x: 374,
           y: 312,
           width: 562,
@@ -393,7 +393,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'left-blocks',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 54,
           y: 220,
           width: 118,
@@ -402,7 +402,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'mid-platform',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 342,
           y: 234,
           width: 170,
@@ -411,7 +411,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'right-platform',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 612,
           y: 250,
           width: 134,
@@ -420,7 +420,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'pipe',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 804,
           y: 188,
           width: 96,
@@ -429,7 +429,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'coins-a',
-          shape: 'circle',
+          shape: 'star',
           x: 292,
           y: 192,
           width: 60,
@@ -438,7 +438,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'coins-b',
-          shape: 'circle',
+          shape: 'star',
           x: 532,
           y: 208,
           width: 66,
@@ -472,7 +472,7 @@ export const recognitionDebugSamples = [
       objects: [
         {
           id: 'left-wall-line',
-          shape: 'line',
+          shape: 'structure',
           x: 64,
           y: 60,
           width: 12,
@@ -481,7 +481,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'right-wall-line',
-          shape: 'line',
+          shape: 'structure',
           x: 404,
           y: 60,
           width: 12,
@@ -490,7 +490,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'platforms-left',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 112,
           y: 244,
           width: 178,
@@ -499,7 +499,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'platforms-right',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 190,
           y: 152,
           width: 178,
@@ -508,7 +508,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'ladder',
-          shape: 'line',
+          shape: 'structure',
           x: 236,
           y: 170,
           width: 32,
@@ -517,7 +517,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'coins',
-          shape: 'circle',
+          shape: 'star',
           x: 119,
           y: 303,
           width: 240,
@@ -551,7 +551,7 @@ export const recognitionDebugSamples = [
       objects: [
         {
           id: 'ground-line',
-          shape: 'line',
+          shape: 'structure',
           x: 28,
           y: 426,
           width: 584,
@@ -560,7 +560,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'left-pipe',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 58,
           y: 332,
           width: 80,
@@ -569,7 +569,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'right-pipe',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 424,
           y: 288,
           width: 102,
@@ -578,7 +578,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'stairs',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 190,
           y: 232,
           width: 200,
@@ -587,7 +587,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'floating-blocks',
-          shape: 'rectangle',
+          shape: 'structure',
           x: 334,
           y: 188,
           width: 90,
@@ -596,7 +596,7 @@ export const recognitionDebugSamples = [
         },
         {
           id: 'enemies',
-          shape: 'circle',
+          shape: 'star',
           x: 136,
           y: 382,
           width: 420,

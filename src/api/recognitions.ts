@@ -20,7 +20,7 @@ const MOCK_RECOGNITION_PAYLOAD = {
   objects: [
     {
       id: 'left-ground-line',
-      shape: 'line',
+      shape: 'structure',
       x: 24,
       y: 312,
       width: 270,
@@ -29,7 +29,7 @@ const MOCK_RECOGNITION_PAYLOAD = {
     },
     {
       id: 'right-ground-line',
-      shape: 'line',
+      shape: 'structure',
       x: 374,
       y: 312,
       width: 562,
@@ -38,7 +38,7 @@ const MOCK_RECOGNITION_PAYLOAD = {
     },
     {
       id: 'left-blocks',
-      shape: 'rectangle',
+      shape: 'structure',
       x: 54,
       y: 220,
       width: 118,
@@ -47,7 +47,7 @@ const MOCK_RECOGNITION_PAYLOAD = {
     },
     {
       id: 'mid-platform',
-      shape: 'rectangle',
+      shape: 'structure',
       x: 342,
       y: 234,
       width: 170,
@@ -56,7 +56,7 @@ const MOCK_RECOGNITION_PAYLOAD = {
     },
     {
       id: 'right-platform',
-      shape: 'rectangle',
+      shape: 'structure',
       x: 612,
       y: 250,
       width: 134,
@@ -65,7 +65,7 @@ const MOCK_RECOGNITION_PAYLOAD = {
     },
     {
       id: 'pipe',
-      shape: 'rectangle',
+      shape: 'structure',
       x: 804,
       y: 188,
       width: 96,
@@ -74,7 +74,7 @@ const MOCK_RECOGNITION_PAYLOAD = {
     },
     {
       id: 'coins-a',
-      shape: 'circle',
+      shape: 'star',
       x: 292,
       y: 192,
       width: 60,
@@ -83,7 +83,7 @@ const MOCK_RECOGNITION_PAYLOAD = {
     },
     {
       id: 'coins-b',
-      shape: 'circle',
+      shape: 'star',
       x: 532,
       y: 208,
       width: 66,

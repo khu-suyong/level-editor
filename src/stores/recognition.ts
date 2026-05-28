@@ -56,7 +56,7 @@ export type RecognitionLayerBuildResult = {
 const DEFAULT_VIEWPORT_WIDTH = 1024;
 const DARK_PIXEL_COVERAGE_THRESHOLD = 0.008;
 const DARK_PIXEL_LUMINANCE_THRESHOLD = 200;
-const FALLBACK_PIXEL_SHAPE = 'line' satisfies CvShape;
+const FALLBACK_PIXEL_SHAPE = 'structure' satisfies CvShape;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));

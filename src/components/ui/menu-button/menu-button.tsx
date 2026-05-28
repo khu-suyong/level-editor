@@ -1,24 +1,35 @@
-import { Box, Button, type ButtonProps, Item, Popup } from '@suis-ui/kit';
+import { Box, Button, type ButtonProps, Item, Popup, type PopupProps } from '@suis-ui/kit';
 import { createSignal, For, splitProps, type ValidComponent } from 'solid-js';
 import { Icon, type IconType } from '../icon';
 
 type MenuItem = {
   label: string;
+  disabled?: boolean;
   icon?: IconType;
   onClick: () => void;
 };
+type PopupOnlyProps = {
+  animation?: Record<string, string>;
+  placement?: PopupProps<ValidComponent>['placement'];
+  strategy?: PopupProps<ValidComponent>['strategy'];
+  offset?: PopupProps<ValidComponent>['offset'];
+  shift?: PopupProps<ValidComponent>['shift'];
+  flip?: PopupProps<ValidComponent>['flip'];
+  autoUpdate?: PopupProps<ValidComponent>['autoUpdate'];
+  middleware?: PopupProps<ValidComponent>['middleware'];
+}
 type MenuButtonOnlyProps = {
   items: MenuItem[];
 };
 export type MenuButtonProps<T extends ValidComponent = 'button'> = Omit<
   ButtonProps<T>,
-  keyof MenuButtonOnlyProps
+  keyof MenuButtonOnlyProps | keyof PopupOnlyProps
 > &
-  MenuButtonOnlyProps;
+  MenuButtonOnlyProps & PopupOnlyProps;
 export const MenuButton = <T extends ValidComponent = 'button'>(
   props: MenuButtonProps<T>,
 ) => {
-  const [local, rest] = splitProps(props, ['items']);
+  const [local, popupProps, rest] = splitProps(props, ['items'], ['animation', 'placement', 'strategy', 'offset', 'shift', 'flip', 'autoUpdate', 'middleware']);
 
   const [open, setOpen] = createSignal(false);
 
@@ -26,18 +37,28 @@ export const MenuButton = <T extends ValidComponent = 'button'>(
     setOpen(!open());
     return rest.onClick?.(event);
   };
+  const handleItemClick = (item: MenuItem) => {
+    if (item.disabled) {
+      return;
+    }
+
+    item.onClick();
+    setOpen(false);
+  };
 
   return (
     <Popup
+      {...popupProps}
       open={open()}
       element={
         <Box
           as={'ul'}
+          minW={'20rem'}
           aria-label={'Menu'}
           direction={'column'}
           gap={'xs'}
           p={'xs'}
-          r={'md'}
+          r={'lg'}
           bg={'surface.main'}
           bc={'surface.higher'}
           bd={'md'}
@@ -46,9 +67,16 @@ export const MenuButton = <T extends ValidComponent = 'button'>(
           <For each={local.items}>
             {(item) => (
               <Item
+                as={Button}
+                variant={'ghost'}
+                aria-disabled={item.disabled}
+                c={item.disabled ? 'text.disabled' : undefined}
                 title={item.label}
                 media={item.icon ? <Icon name={item.icon} /> : undefined}
-                onClick={item.onClick}
+                onClick={() => handleItemClick(item)}
+                style={{
+                  'pointer-events': item.disabled ? 'none' : 'auto',
+                }}
               />
             )}
           </For>

@@ -1,10 +1,9 @@
 import {
   AppWindow,
+  Blocks,
   ChartNoAxesColumnIncreasing,
-  Circle,
   DoorOpen,
   Minus,
-  Square,
   Star,
   Triangle,
 } from 'lucide-solid';
@@ -22,8 +21,7 @@ export const TileIconMap = {
 } as const satisfies Record<TileIcon, IconType>;
 
 export const CvShapeIconMap = {
+  structure: Blocks,
   triangle: Triangle,
-  rectangle: Square,
-  circle: Circle,
-  line: Minus,
+  star: Star,
 } as const satisfies Record<CvShape, IconType>;
