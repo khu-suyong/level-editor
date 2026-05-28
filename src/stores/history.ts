@@ -543,6 +543,46 @@ export const replaceLevel = (nextSnapshot: LevelData) => {
   });
 };
 
+export const renameLevel = (name: string) => {
+  const nextName = name.trim();
+  const snapshot = currentSnapshot.get();
+
+  if (!nextName || !snapshot || snapshot.name === nextName) {
+    return false;
+  }
+
+  const history = historyStore.get();
+
+  historyStore.set({
+    ...history,
+    actions: history.actions.map((action) => {
+      if (action.type !== 'replace-level') {
+        return cloneHistoryAction(action);
+      }
+
+      return {
+        ...action,
+        before: {
+          ...cloneSnapshot(action.before),
+          name: nextName,
+        },
+        after: {
+          ...cloneSnapshot(action.after),
+          name: nextName,
+        },
+      };
+    }),
+    latestSnapshot: history.latestSnapshot
+      ? {
+          ...cloneSnapshot(history.latestSnapshot),
+          name: nextName,
+        }
+      : null,
+  });
+
+  return true;
+};
+
 export const moveTiles = (
   layerId: string,
   moves: TileMove[],

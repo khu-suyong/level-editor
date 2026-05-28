@@ -1,6 +1,6 @@
-import { Box, Button, vars } from '@suis-ui/kit';
-import { FileDown, FileUp, Menu } from 'lucide-solid';
-import { createSignal, For, type JSX } from 'solid-js';
+import { Box, Button, Input, vars } from '@suis-ui/kit';
+import { FileDown, FileUp, Menu, Save, X } from 'lucide-solid';
+import { createEffect, createSignal, For, type JSX } from 'solid-js';
 
 import { Icon } from '@/components/ui/icon';
 import { MenuButton } from '@/components/ui/menu-button';
@@ -26,6 +26,7 @@ type SidePanelProps = {
   onDeleteLayer: (layerId: string) => void;
   onLoadLevelFile: (file: File) => void;
   onMoveLayer: (layerId: string, direction: LayerMoveDirection) => void;
+  onRenameLevel: (name: string) => void;
   onSaveLevel: () => void;
   onSelectActiveLayer: (layerId: string) => void;
   onSelectBrushTile: (tileId: number) => void;
@@ -34,11 +35,64 @@ type SidePanelProps = {
 
 export const SidePanel = (props: SidePanelProps) => {
   let levelFileInput: HTMLInputElement | undefined;
+  let levelNameInput: HTMLInputElement | undefined;
   const [activeTab, setActiveTab] = createSignal<SidePanelTab>('layer');
+  const [levelNameEditing, setLevelNameEditing] = createSignal(false);
+  const [levelNameDraft, setLevelNameDraft] = createSignal(props.level.name);
+  const [levelNameError, setLevelNameError] = createSignal<string | null>(null);
   const getTabIndex = (tab: SidePanelTab) => sidePanelTabs.indexOf(tab);
   const activeTabIndex = () => getTabIndex(activeTab());
   const selectTab = (tab: SidePanelTab) => {
     setActiveTab(tab);
+  };
+  const focusLevelNameInput = () => {
+    queueMicrotask(() => {
+      levelNameInput?.focus();
+      levelNameInput?.select();
+    });
+  };
+  const handleStartLevelNameEdit = () => {
+    setLevelNameDraft(props.level.name);
+    setLevelNameError(null);
+    setLevelNameEditing(true);
+    focusLevelNameInput();
+  };
+  const handleCancelLevelNameEdit = () => {
+    setLevelNameDraft(props.level.name);
+    setLevelNameError(null);
+    setLevelNameEditing(false);
+  };
+  const handleSaveLevelName = () => {
+    const nextName = levelNameDraft().trim();
+
+    if (!nextName) {
+      setLevelNameError('이름을 입력하세요.');
+      focusLevelNameInput();
+      return;
+    }
+
+    if (nextName !== props.level.name) {
+      props.onRenameLevel(nextName);
+    }
+
+    setLevelNameDraft(nextName);
+    setLevelNameError(null);
+    setLevelNameEditing(false);
+  };
+  const handleLevelNameKeyDown: JSX.EventHandler<
+    HTMLInputElement,
+    KeyboardEvent
+  > = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSaveLevelName();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      handleCancelLevelNameEdit();
+    }
   };
   const handleOpenLevelFileInput = () => {
     if (props.levelLoadPending) {
@@ -60,6 +114,14 @@ export const SidePanel = (props: SidePanelProps) => {
 
     props.onLoadLevelFile(file);
   };
+
+  createEffect(() => {
+    if (levelNameEditing()) {
+      return;
+    }
+
+    setLevelNameDraft(props.level.name);
+  });
 
   return (
     <Box
@@ -122,7 +184,90 @@ export const SidePanel = (props: SidePanelProps) => {
         >
           <Icon name={Menu} />
         </MenuButton>
-        <Box text={'body'}>{props.level.name}</Box>
+        <Box flex minW={'0'} gap={'xxs'}>
+          {levelNameEditing() ? (
+            <>
+              <Box
+                w={'100%'}
+                minW={'0'}
+                direction={'row'}
+                align={'center'}
+                gap={'xxs'}
+              >
+                <Input
+                  ref={(element) => {
+                    levelNameInput = element;
+                  }}
+                  flex
+                  minW={'0'}
+                  value={levelNameDraft()}
+                  aria-label={'레벨 이름'}
+                  style={{
+                    'min-width': '0',
+                    width: '0',
+                  }}
+                  onInput={(event) => {
+                    setLevelNameDraft(event.currentTarget.value);
+                    setLevelNameError(null);
+                  }}
+                  onKeyDown={handleLevelNameKeyDown}
+                />
+                <Button
+                  variant={'ghost'}
+                  type={'icon'}
+                  size={'sm'}
+                  r={'md'}
+                  flex={'0 0 auto'}
+                  aria-label={'레벨 이름 저장'}
+                  onClick={handleSaveLevelName}
+                >
+                  <Icon name={Save} />
+                </Button>
+                <Button
+                  variant={'ghost'}
+                  type={'icon'}
+                  size={'sm'}
+                  r={'md'}
+                  flex={'0 0 auto'}
+                  aria-label={'레벨 이름 변경 취소'}
+                  onClick={handleCancelLevelNameEdit}
+                >
+                  <Icon name={X} />
+                </Button>
+              </Box>
+              <Box
+                minH={vars.font.caption.lineHeight}
+                text={'caption'}
+                c={'error.main'}
+              >
+                {levelNameError() ?? ' '}
+              </Box>
+            </>
+          ) : (
+            <Button
+              flex
+              minW={'0'}
+              variant={'ghost'}
+              size={'sm'}
+              justify={'flex-start'}
+              title={props.level.name}
+              aria-label={'레벨 이름 변경'}
+              onClick={handleStartLevelNameEdit}
+            >
+              <Box
+                as={'span'}
+                minW={'0'}
+                overflow={'hidden'}
+                style={{
+                  'text-overflow': 'ellipsis',
+                  'white-space': 'nowrap',
+                }}
+              >
+                {props.level.name}
+              </Box>
+            </Button>
+          )}
+        </Box>
       </Box>
       <Box
         direction={'row'}

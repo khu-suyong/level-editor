@@ -1,4 +1,11 @@
-import { Box, Button, type ButtonProps, Item, Popup, type PopupProps } from '@suis-ui/kit';
+import {
+  Box,
+  Button,
+  type ButtonProps,
+  Item,
+  Popup,
+  type PopupProps,
+} from '@suis-ui/kit';
 import { createSignal, For, splitProps, type ValidComponent } from 'solid-js';
 import { Icon, type IconType } from '../icon';
 
@@ -17,7 +24,7 @@ type PopupOnlyProps = {
   flip?: PopupProps<ValidComponent>['flip'];
   autoUpdate?: PopupProps<ValidComponent>['autoUpdate'];
   middleware?: PopupProps<ValidComponent>['middleware'];
-}
+};
 type MenuButtonOnlyProps = {
   items: MenuItem[];
 };
@@ -25,11 +32,25 @@ export type MenuButtonProps<T extends ValidComponent = 'button'> = Omit<
   ButtonProps<T>,
   keyof MenuButtonOnlyProps | keyof PopupOnlyProps
 > &
-  MenuButtonOnlyProps & PopupOnlyProps;
+  MenuButtonOnlyProps &
+  PopupOnlyProps;
 export const MenuButton = <T extends ValidComponent = 'button'>(
   props: MenuButtonProps<T>,
 ) => {
-  const [local, popupProps, rest] = splitProps(props, ['items'], ['animation', 'placement', 'strategy', 'offset', 'shift', 'flip', 'autoUpdate', 'middleware']);
+  const [local, popupProps, rest] = splitProps(
+    props,
+    ['items'],
+    [
+      'animation',
+      'placement',
+      'strategy',
+      'offset',
+      'shift',
+      'flip',
+      'autoUpdate',
+      'middleware',
+    ],
+  );
 
   const [open, setOpen] = createSignal(false);
 

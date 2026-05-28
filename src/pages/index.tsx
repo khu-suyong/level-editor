@@ -23,6 +23,7 @@ import {
   currentSnapshot,
   initializeHistory,
   redoHistory,
+  renameLevel,
   replaceLevel,
   undoHistory,
 } from '../stores/history';
@@ -156,6 +157,9 @@ export default function HomePage() {
   const handleApplyLevel = (nextLevel: LevelData) => {
     replaceLevel(nextLevel);
     setSelection([]);
+  };
+  const handleRenameLevel = (name: string) => {
+    renameLevel(name);
   };
   const handleSaveLevel = () => {
     const currentLevel = level();
@@ -401,6 +405,7 @@ export default function HomePage() {
         onDeleteLayer={handleDeleteLayer}
         onLoadLevelFile={handleLoadLevelFile}
         onMoveLayer={handleMoveLayer}
+        onRenameLevel={handleRenameLevel}
         onSaveLevel={handleSaveLevel}
         onSelectActiveLayer={handleSelectLayer}
         onSelectBrushTile={setSelectedBrushTileId}
