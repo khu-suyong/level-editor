@@ -1,10 +1,24 @@
 import { useStore } from '@nanostores/solid';
 import { Box, Button } from '@suis-ui/kit';
 import { createMutation } from '@tanstack/solid-query';
-import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
+import {
+  createEffect,
+  createSignal,
+  type JSX,
+  onCleanup,
+  onMount,
+} from 'solid-js';
 
 import { uploadRecognitionImage } from '@/api/recognitions';
 import { Dialog } from '@/components/ui/dialog';
+import {
+  editorToolShortcutActionIds,
+  getShortcutMatch,
+  type ShortcutActionId,
+  type ShortcutMatch,
+  shortcutById,
+  shouldIgnoreShortcutEvent,
+} from '@/helpers/editor-shortcuts';
 import { clampGridSize, DEFAULT_GRID_SIZE } from '@/helpers/grid-size';
 import { PixiViewport } from '../components/pixi-viewport';
 import type { LevelData, RecognitionPayload } from '../models/level';
@@ -37,12 +51,18 @@ import {
 } from '../stores/layers';
 import {
   getLevelFileName,
+  LEVEL_FILE_ACCEPT,
   parseLevelFileText,
   serializeLevelData,
 } from '../stores/level-file';
 import { insertRecognitionLayer } from '../stores/recognition';
+import {
+  getUnrealExportFileName,
+  serializeUnrealExportData,
+} from '../stores/unreal-export';
 import { PropertyPanel } from './_components/property-panel';
 import { RecognitionResultDialog } from './_components/recognition-result-dialog';
+import { ShortcutHelpDialog } from './_components/shortcut-help-dialog';
 import { SidePanel } from './_components/side-panel';
 import { ToolPanel } from './_components/tool-panel';
 
@@ -80,23 +100,35 @@ const defaultLevel: LevelData = {
 
 initializeHistory(defaultLevel);
 
-const isEditableTarget = (target: EventTarget | null) => {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-
-  return (
-    target.isContentEditable ||
-    target.matches('input, textarea, select, button')
-  );
-};
-
 type PendingLevelFile = {
   fileName: string;
   level: LevelData;
 };
 
+const browserDefaultShortcutIds = new Set<ShortcutActionId>([
+  'save-level',
+  'open-level',
+  'import-recognition',
+]);
+
+const downloadJsonFile = (fileName: string, content: string) => {
+  const blob = new Blob([content], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+};
+
 export default function HomePage() {
+  let levelFileInput: HTMLInputElement | undefined;
+  let recognitionImageInput: HTMLInputElement | undefined;
   const editor = useStore(editorStore);
   const snapshot = useStore(currentSnapshot);
   const undoAvailable = useStore(canUndo);
@@ -116,7 +148,11 @@ export default function HomePage() {
   const [pendingLevelFile, setPendingLevelFile] =
     createSignal<PendingLevelFile | null>(null);
   const [levelFileError, setLevelFileError] = createSignal<string | null>(null);
+  const [unrealExportError, setUnrealExportError] = createSignal<string | null>(
+    null,
+  );
   const [draftGridSize, setDraftGridSize] = createSignal<number | null>(null);
+  const [shortcutHelpOpen, setShortcutHelpOpen] = createSignal(false);
   const level = () => snapshot() ?? defaultLevel;
   const gridSize = () => draftGridSize() ?? level().gridSize;
   const recognitionUploadMutation = createMutation<
@@ -163,18 +199,48 @@ export default function HomePage() {
   };
   const handleSaveLevel = () => {
     const currentLevel = level();
-    const blob = new Blob([serializeLevelData(currentLevel)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
 
-    link.href = url;
-    link.download = getLevelFileName(currentLevel);
-    document.body.append(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    downloadJsonFile(
+      getLevelFileName(currentLevel),
+      serializeLevelData(currentLevel),
+    );
+  };
+  const handleExportUnrealLevel = () => {
+    const currentLevel = level();
+
+    try {
+      downloadJsonFile(
+        getUnrealExportFileName(currentLevel),
+        serializeUnrealExportData(currentLevel),
+      );
+      setUnrealExportError(null);
+    } catch (error) {
+      setUnrealExportError(
+        error instanceof Error
+          ? error.message
+          : 'UE Export JSON을 생성하지 못했습니다.',
+      );
+    }
+  };
+  const handleOpenLevelFile = () => {
+    if (levelFileLoadPending()) {
+      return;
+    }
+
+    levelFileInput?.click();
+  };
+  const handleLevelFileChange: JSX.EventHandler<HTMLInputElement, Event> = (
+    event,
+  ) => {
+    const file = event.currentTarget.files?.[0] ?? null;
+
+    event.currentTarget.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    void handleLoadLevelFile(file);
   };
   const handleLoadLevelFile = async (file: File) => {
     setLevelFileError(null);
@@ -219,6 +285,9 @@ export default function HomePage() {
   };
   const handleCloseLevelFileError = () => {
     setLevelFileError(null);
+  };
+  const handleCloseUnrealExportError = () => {
+    setUnrealExportError(null);
   };
   const handleAddLayer = () => {
     const result = addEmptyLayerToBottom(level());
@@ -281,6 +350,27 @@ export default function HomePage() {
   const handleImportRecognitionImage = (file: File) => {
     recognitionUploadMutation.mutate(file);
   };
+  const handleOpenRecognitionImage = () => {
+    if (recognitionUploadMutation.isPending) {
+      return;
+    }
+
+    recognitionImageInput?.click();
+  };
+  const handleRecognitionImageChange: JSX.EventHandler<
+    HTMLInputElement,
+    Event
+  > = (event) => {
+    const file = event.currentTarget.files?.[0] ?? null;
+
+    event.currentTarget.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    handleImportRecognitionImage(file);
+  };
   const handleCloseRecognitionResults = () => {
     setRecognitionResultsOpen(false);
   };
@@ -303,6 +393,12 @@ export default function HomePage() {
       ...level(),
       gridSize: committedGridSize,
     });
+  };
+  const handleOpenShortcutHelp = () => {
+    setShortcutHelpOpen(true);
+  };
+  const handleCloseShortcutHelp = () => {
+    setShortcutHelpOpen(false);
   };
 
   createEffect(() => {
@@ -339,26 +435,121 @@ export default function HomePage() {
   });
 
   onMount(() => {
+    const findGlobalShortcut = (event: KeyboardEvent): ShortcutMatch | null => {
+      const saveMatch = getShortcutMatch(event, shortcutById['save-level']);
+
+      if (saveMatch) {
+        return saveMatch;
+      }
+
+      const openMatch = getShortcutMatch(event, shortcutById['open-level']);
+
+      if (openMatch) {
+        return openMatch;
+      }
+
+      const recognitionMatch = getShortcutMatch(
+        event,
+        shortcutById['import-recognition'],
+      );
+
+      if (recognitionMatch) {
+        return recognitionMatch;
+      }
+
+      const helpMatch = getShortcutMatch(
+        event,
+        shortcutById['open-shortcut-help'],
+      );
+
+      if (helpMatch) {
+        return helpMatch;
+      }
+
+      const redoMatch = getShortcutMatch(event, shortcutById.redo);
+
+      if (redoMatch) {
+        return redoMatch;
+      }
+
+      const undoMatch = getShortcutMatch(event, shortcutById.undo);
+
+      if (undoMatch) {
+        return undoMatch;
+      }
+
+      for (const tool of Object.keys(editorToolShortcutActionIds) as Array<
+        keyof typeof editorToolShortcutActionIds
+      >) {
+        const shortcut = shortcutById[editorToolShortcutActionIds[tool]];
+        const toolMatch = getShortcutMatch(event, shortcut);
+
+        if (toolMatch) {
+          return toolMatch;
+        }
+      }
+
+      return null;
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isEditableTarget(event.target)) {
+      const match = findGlobalShortcut(event);
+
+      if (!match) {
         return;
       }
 
-      if (
-        !(event.metaKey || event.ctrlKey) ||
-        event.key.toLowerCase() !== 'z'
-      ) {
+      if (shouldIgnoreShortcutEvent(event, match)) {
+        if (browserDefaultShortcutIds.has(match.shortcut.id)) {
+          event.preventDefault();
+        }
+
         return;
       }
 
       event.preventDefault();
 
-      if (event.shiftKey) {
+      if (event.repeat) {
+        return;
+      }
+
+      if (match.shortcut.id === 'save-level') {
+        handleSaveLevel();
+        return;
+      }
+
+      if (match.shortcut.id === 'open-level') {
+        handleOpenLevelFile();
+        return;
+      }
+
+      if (match.shortcut.id === 'import-recognition') {
+        handleOpenRecognitionImage();
+        return;
+      }
+
+      if (match.shortcut.id === 'open-shortcut-help') {
+        handleOpenShortcutHelp();
+        return;
+      }
+
+      if (match.shortcut.id === 'redo') {
         handleRedo();
         return;
       }
 
-      handleUndo();
+      if (match.shortcut.id === 'undo') {
+        handleUndo();
+        return;
+      }
+
+      const tool = Object.entries(editorToolShortcutActionIds).find(
+        ([, actionId]) => actionId === match.shortcut.id,
+      )?.[0];
+
+      if (tool) {
+        setSelectedTool(tool as keyof typeof editorToolShortcutActionIds);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -379,6 +570,26 @@ export default function HomePage() {
       c={'text.main'}
       z={'0'}
     >
+      <input
+        ref={(element) => {
+          levelFileInput = element;
+        }}
+        type={'file'}
+        accept={LEVEL_FILE_ACCEPT}
+        aria-label={'Level JSON file'}
+        hidden
+        onChange={handleLevelFileChange}
+      />
+      <input
+        ref={(element) => {
+          recognitionImageInput = element;
+        }}
+        type={'file'}
+        accept={'image/*'}
+        aria-label={'Recognition image file'}
+        hidden
+        onChange={handleRecognitionImageChange}
+      />
       <Box
         as={'section'}
         pos={'absolute'}
@@ -403,8 +614,9 @@ export default function HomePage() {
         onApplyLevel={handleApplyLevel}
         onAddLayer={handleAddLayer}
         onDeleteLayer={handleDeleteLayer}
-        onLoadLevelFile={handleLoadLevelFile}
+        onExportUnrealLevel={handleExportUnrealLevel}
         onMoveLayer={handleMoveLayer}
+        onOpenLevelFile={handleOpenLevelFile}
         onRenameLevel={handleRenameLevel}
         onSaveLevel={handleSaveLevel}
         onSelectActiveLayer={handleSelectLayer}
@@ -416,7 +628,7 @@ export default function HomePage() {
         canRedo={redoAvailable()}
         recognitionImportPending={recognitionUploadMutation.isPending}
         selectedBrushTileId={editor().selectedBrushTileId}
-        onImportRecognitionImage={handleImportRecognitionImage}
+        onOpenRecognitionImage={handleOpenRecognitionImage}
         onUndo={handleUndo}
         onRedo={handleRedo}
         selectedTool={editor().selectedTool}
@@ -438,6 +650,10 @@ export default function HomePage() {
         onClose={handleCloseRecognitionResults}
         onInsertPayload={handleInsertRecognitionPayload}
         onSelectIndex={setSelectedRecognitionIndex}
+      />
+      <ShortcutHelpDialog
+        open={shortcutHelpOpen()}
+        onClose={handleCloseShortcutHelp}
       />
       <Dialog
         open={Boolean(pendingLevelFile())}
@@ -477,6 +693,19 @@ export default function HomePage() {
         }
       >
         <Box text={'body'}>{'레벨 파일을 불러오지 못했습니다.'}</Box>
+      </Dialog>
+      <Dialog
+        open={Boolean(unrealExportError())}
+        title={'UE Export 오류'}
+        description={unrealExportError() ?? undefined}
+        onClose={handleCloseUnrealExportError}
+        footer={
+          <Button variant={'primary'} onClick={handleCloseUnrealExportError}>
+            {'확인'}
+          </Button>
+        }
+      >
+        <Box text={'body'}>{'UE Export JSON을 생성하지 못했습니다.'}</Box>
       </Dialog>
       <Dialog
         open={Boolean(recognitionApiError())}

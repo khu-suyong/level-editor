@@ -28,6 +28,7 @@ import {
   isCellInTileBounds,
   layerBoundsToTileBounds,
   normalizeTiles,
+  resolveFloodFillCells,
   tileBoundsToLayerBounds,
   uniqueCells,
 } from './util';
@@ -233,6 +234,38 @@ export const usePixiEditorActions = ({
     dispatchAddOrReplace(tiles);
   };
 
+  const fillCellsFrom = (startCell: Cell) => {
+    const activeLayer = getActiveLayer();
+
+    if (!activeLayer) {
+      return;
+    }
+
+    const fillCells = resolveFloodFillCells(activeLayer, startCell);
+
+    if (fillCells.length === 0) {
+      return;
+    }
+
+    const tileId = getBrushTileId();
+    const activeTilesByCoordinate = new Map(
+      getActiveTiles().map((tile) => [coordinateKey(tile), tile]),
+    );
+    const tiles = fillCells.map((cell) => ({
+      ...cell,
+      tileId,
+    }));
+    const nextSelection = fillCells.map((cell) => {
+      const existingTile = activeTilesByCoordinate.get(coordinateKey(cell));
+
+      return existingTile?.tileId === tileId
+        ? cloneTile(existingTile)
+        : { ...cell, tileId };
+    });
+
+    dispatchAddOrReplace(tiles, nextSelection);
+  };
+
   const eraseCells = (cells: Cell[]) => {
     const targetKeys = new Set(uniqueCells(cells).map(coordinateKey));
     const deletedTiles = getActiveTiles().filter((tile) =>
@@ -425,6 +458,7 @@ export const usePixiEditorActions = ({
     copySelection,
     deleteSelection,
     eraseCells,
+    fillCellsFrom,
     findTileAt,
     getActiveTiles,
     getBrushTileId,

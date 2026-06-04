@@ -1,8 +1,14 @@
 import { Box, Button, Tooltip, vars } from '@suis-ui/kit';
 import { Plus, Redo2, Undo2 } from 'lucide-solid';
 import { Flip } from 'solid-flip';
-import { For, type JSX, Show } from 'solid-js';
+import { For, Show } from 'solid-js';
 
+import {
+  editorToolShortcutActionIds,
+  getShortcutAriaKeys,
+  getShortcutDisplay,
+  shortcutById,
+} from '@/helpers/editor-shortcuts';
 import type { TileMapping } from '@/models/level';
 import { TilePreview } from '@/pages/_components/tile-preview';
 import type { EditorTool } from '@/stores/editor';
@@ -19,32 +25,13 @@ type ToolPanelProps = {
   onRedo: () => void;
   selectedTool: EditorTool;
   tileTable: TileMapping[];
-  onImportRecognitionImage: (file: File) => void;
+  onOpenRecognitionImage: () => void;
   onUndo: () => void;
   onSelectBrushTile: (tileId: number) => void;
   onSelectTool: (selectedTool: EditorTool) => void;
 };
 
 export function ToolPanel(props: ToolPanelProps) {
-  let recognitionImageInput: HTMLInputElement | undefined;
-  const handleOpenRecognitionImageInput = () => {
-    recognitionImageInput?.click();
-  };
-  const handleRecognitionImageChange: JSX.EventHandler<
-    HTMLInputElement,
-    Event
-  > = (event) => {
-    const file = event.currentTarget.files?.[0] ?? null;
-
-    event.currentTarget.value = '';
-
-    if (!file) {
-      return;
-    }
-
-    props.onImportRecognitionImage(file);
-  };
-
   return (
     <Box
       as={'aside'}
@@ -58,17 +45,6 @@ export function ToolPanel(props: ToolPanelProps) {
       align={'center'}
       gap={'sm'}
     >
-      <input
-        ref={(element) => {
-          recognitionImageInput = element;
-        }}
-        type={'file'}
-        accept={'image/*'}
-        aria-label={'Recognition image file'}
-        hidden
-        onChange={handleRecognitionImageChange}
-      />
-
       <Flip
         id={'toolbar-history-actions'}
         with={props.selectedTool}
@@ -92,12 +68,16 @@ export function ToolPanel(props: ToolPanelProps) {
               label={'실행 취소'}
               disabled={!props.canUndo}
               onClick={props.onUndo}
+              shortcut={getShortcutDisplay(shortcutById.undo)}
+              ariaKeyShortcuts={getShortcutAriaKeys(shortcutById.undo)}
             />
             <ToolbarIconButton
               icon={Redo2}
               label={'다시 실행'}
               disabled={!props.canRedo}
               onClick={props.onRedo}
+              shortcut={getShortcutDisplay(shortcutById.redo)}
+              ariaKeyShortcuts={getShortcutAriaKeys(shortcutById.redo)}
             />
           </Box>
         </Box>
@@ -124,7 +104,11 @@ export function ToolPanel(props: ToolPanelProps) {
             icon={Plus}
             label={'이미지 인식'}
             disabled={props.recognitionImportPending}
-            onClick={handleOpenRecognitionImageInput}
+            onClick={props.onOpenRecognitionImage}
+            shortcut={getShortcutDisplay(shortcutById['import-recognition'])}
+            ariaKeyShortcuts={getShortcutAriaKeys(
+              shortcutById['import-recognition'],
+            )}
           />
         </Box>
       </Flip>
@@ -154,6 +138,12 @@ export function ToolPanel(props: ToolPanelProps) {
                   label={tool.label}
                   active={props.selectedTool === tool.id}
                   onClick={() => props.onSelectTool(tool.id)}
+                  shortcut={getShortcutDisplay(
+                    shortcutById[editorToolShortcutActionIds[tool.id]],
+                  )}
+                  ariaKeyShortcuts={getShortcutAriaKeys(
+                    shortcutById[editorToolShortcutActionIds[tool.id]],
+                  )}
                 />
               )}
             </For>
@@ -161,7 +151,9 @@ export function ToolPanel(props: ToolPanelProps) {
         </Box>
       </Flip>
 
-      <Show when={props.selectedTool === 'brush'}>
+      <Show
+        when={props.selectedTool === 'brush' || props.selectedTool === 'fill'}
+      >
         <Flip
           id={'toolbar-brush-palette'}
           with={props.selectedTool}
@@ -179,9 +171,9 @@ export function ToolPanel(props: ToolPanelProps) {
             bc={'surface.higher'}
             bd={'thin'}
             shadow={'md'}
-            aria-label={'브러시 타일 선택기'}
+            aria-label={'타일 선택기'}
           >
-            <Box direction={'row'} aria-label={'브러시 타일'}>
+            <Box direction={'row'} aria-label={'타일'}>
               <For each={props.tileTable}>
                 {(tile) => (
                   <Tooltip
@@ -195,7 +187,7 @@ export function ToolPanel(props: ToolPanelProps) {
                       size={'md'}
                       p={'none'}
                       type={'icon'}
-                      aria-label={`Use ${getTileDisplayName(tile)} brush`}
+                      aria-label={`Use ${getTileDisplayName(tile)} tile`}
                       onClick={() => props.onSelectBrushTile(tile.tileId)}
                       style={{
                         opacity:

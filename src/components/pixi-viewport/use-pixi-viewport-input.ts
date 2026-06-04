@@ -1,6 +1,14 @@
 import type { Accessor, Setter } from 'solid-js';
 import { onCleanup, onMount } from 'solid-js';
 
+import {
+  getShortcutBindingMatch,
+  matchesShortcut,
+  type ShortcutBinding,
+  type ShortcutDefinition,
+  shortcutById,
+  shouldIgnoreShortcutEvent,
+} from '@/helpers/editor-shortcuts';
 import type { Cell, LayerBounds, TilePlacement } from '@/models/level';
 import { type EditorTool, setSelection } from '@/stores/editor';
 
@@ -19,7 +27,6 @@ import {
   clamp,
   coordinateKey,
   isCellInTileBounds,
-  isEditableTarget,
   normalizeTiles,
   uniqueCells,
 } from './util';
@@ -584,6 +591,12 @@ export const usePixiViewportInput = ({
       return;
     }
 
+    if (selectedTool() === 'fill') {
+      actions.fillCellsFrom(pointerCell.cell);
+      safeReleasePointerCapture(event.pointerId);
+      return;
+    }
+
     if (
       selectedTool() === 'select' &&
       !event.shiftKey &&
@@ -697,14 +710,32 @@ export const usePixiViewportInput = ({
     });
   };
 
+  const shouldIgnoreCanvasShortcut = (
+    event: KeyboardEvent,
+    shortcut: ShortcutDefinition,
+    binding: ShortcutBinding,
+  ) => shouldIgnoreShortcutEvent(event, { binding, shortcut });
+
   const handleCommandShortcut = (event: KeyboardEvent) => {
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'c') {
+    const copyBinding = getShortcutBindingMatch(event, shortcutById.copy);
+
+    if (copyBinding) {
+      if (shouldIgnoreCanvasShortcut(event, shortcutById.copy, copyBinding)) {
+        return false;
+      }
+
       event.preventDefault();
       actions.copySelection();
       return true;
     }
 
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'v') {
+    const pasteBinding = getShortcutBindingMatch(event, shortcutById.paste);
+
+    if (pasteBinding) {
+      if (shouldIgnoreCanvasShortcut(event, shortcutById.paste, pasteBinding)) {
+        return false;
+      }
+
       event.preventDefault();
       actions.pasteClipboard(getPasteTarget());
       closeContextMenu();
@@ -715,7 +746,7 @@ export const usePixiViewportInput = ({
   };
 
   const handleCanvasCommand = (event: KeyboardEvent) => {
-    if (event.key === 'Escape') {
+    if (matchesShortcut(event, shortcutById.cancel)) {
       event.preventDefault();
       cancelDrag();
       closeContextMenu();
@@ -723,13 +754,13 @@ export const usePixiViewportInput = ({
       return true;
     }
 
-    if (event.key === 'Delete' || event.key === 'Backspace') {
+    if (matchesShortcut(event, shortcutById['delete-selection'])) {
       event.preventDefault();
       actions.deleteSelection();
       return true;
     }
 
-    if (event.key === '0') {
+    if (matchesShortcut(event, shortcutById['reset-view'])) {
       event.preventDefault();
       sceneApi.resetView();
       return true;
@@ -739,7 +770,17 @@ export const usePixiViewportInput = ({
   };
 
   const handleKeyboardPan = (event: KeyboardEvent, current: PixiScene) => {
-    const panStep = event.shiftKey ? gridSize() * 4 : gridSize();
+    const isPanShortcut = matchesShortcut(event, shortcutById['pan-view']);
+    const isFastPanShortcut = matchesShortcut(
+      event,
+      shortcutById['fast-pan-view'],
+    );
+
+    if (!isPanShortcut && !isFastPanShortcut) {
+      return false;
+    }
+
+    const panStep = isFastPanShortcut ? gridSize() * 4 : gridSize();
 
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
@@ -764,17 +805,83 @@ export const usePixiViewportInput = ({
   const handleKeyDown = (event: KeyboardEvent) => {
     const current = scene();
 
-    if (isEditableTarget(event.target) || !current) {
+    if (!current) {
       return;
     }
 
-    if (event.code === 'Space') {
+    if (handleCommandShortcut(event)) {
+      return;
+    }
+
+    const temporaryPanBinding = getShortcutBindingMatch(
+      event,
+      shortcutById['temporary-pan'],
+    );
+
+    if (
+      temporaryPanBinding &&
+      shouldIgnoreCanvasShortcut(
+        event,
+        shortcutById['temporary-pan'],
+        temporaryPanBinding,
+      )
+    ) {
+      return;
+    }
+
+    if (matchesShortcut(event, shortcutById['temporary-pan'])) {
       isSpaceDown = true;
       event.preventDefault();
       return;
     }
 
-    if (handleCommandShortcut(event)) {
+    const cancelBinding = getShortcutBindingMatch(event, shortcutById.cancel);
+    const deleteBinding = getShortcutBindingMatch(
+      event,
+      shortcutById['delete-selection'],
+    );
+    const resetViewBinding = getShortcutBindingMatch(
+      event,
+      shortcutById['reset-view'],
+    );
+    const panViewBinding = getShortcutBindingMatch(
+      event,
+      shortcutById['pan-view'],
+    );
+    const fastPanViewBinding = getShortcutBindingMatch(
+      event,
+      shortcutById['fast-pan-view'],
+    );
+    const panMatch = panViewBinding
+      ? { binding: panViewBinding, shortcut: shortcutById['pan-view'] }
+      : fastPanViewBinding
+        ? {
+            binding: fastPanViewBinding,
+            shortcut: shortcutById['fast-pan-view'],
+          }
+        : null;
+
+    if (
+      (cancelBinding &&
+        shouldIgnoreCanvasShortcut(
+          event,
+          shortcutById.cancel,
+          cancelBinding,
+        )) ||
+      (deleteBinding &&
+        shouldIgnoreCanvasShortcut(
+          event,
+          shortcutById['delete-selection'],
+          deleteBinding,
+        )) ||
+      (resetViewBinding &&
+        shouldIgnoreCanvasShortcut(
+          event,
+          shortcutById['reset-view'],
+          resetViewBinding,
+        )) ||
+      (panMatch && shouldIgnoreShortcutEvent(event, panMatch))
+    ) {
       return;
     }
 

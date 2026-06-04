@@ -1,12 +1,16 @@
 import { Box, Button, Input, vars } from '@suis-ui/kit';
-import { FileDown, FileUp, Menu, Save, X } from 'lucide-solid';
+import { FileDown, FileOutput, FileUp, Menu, Save, X } from 'lucide-solid';
 import { createEffect, createSignal, For, type JSX } from 'solid-js';
 
 import { Icon } from '@/components/ui/icon';
 import { MenuButton } from '@/components/ui/menu-button';
+import {
+  getShortcutAriaKeys,
+  getShortcutDisplay,
+  shortcutById,
+} from '@/helpers/editor-shortcuts';
 import type { LevelData } from '@/models/level';
 import type { LayerMoveDirection } from '@/stores/layers';
-import { LEVEL_FILE_ACCEPT } from '@/stores/level-file';
 import { LayerTab } from './layer-tab';
 import { PaletteTab } from './palette-tab';
 import * as styles from './side-panel.css';
@@ -24,8 +28,9 @@ type SidePanelProps = {
   onApplyLevel: (level: LevelData) => void;
   onAddLayer: () => void;
   onDeleteLayer: (layerId: string) => void;
-  onLoadLevelFile: (file: File) => void;
+  onExportUnrealLevel: () => void;
   onMoveLayer: (layerId: string, direction: LayerMoveDirection) => void;
+  onOpenLevelFile: () => void;
   onRenameLevel: (name: string) => void;
   onSaveLevel: () => void;
   onSelectActiveLayer: (layerId: string) => void;
@@ -34,7 +39,6 @@ type SidePanelProps = {
 };
 
 export const SidePanel = (props: SidePanelProps) => {
-  let levelFileInput: HTMLInputElement | undefined;
   let levelNameInput: HTMLInputElement | undefined;
   const [activeTab, setActiveTab] = createSignal<SidePanelTab>('layer');
   const [levelNameEditing, setLevelNameEditing] = createSignal(false);
@@ -94,26 +98,6 @@ export const SidePanel = (props: SidePanelProps) => {
       handleCancelLevelNameEdit();
     }
   };
-  const handleOpenLevelFileInput = () => {
-    if (props.levelLoadPending) {
-      return;
-    }
-
-    levelFileInput?.click();
-  };
-  const handleLevelFileChange: JSX.EventHandler<HTMLInputElement, Event> = (
-    event,
-  ) => {
-    const file = event.currentTarget.files?.[0] ?? null;
-
-    event.currentTarget.value = '';
-
-    if (!file) {
-      return;
-    }
-
-    props.onLoadLevelFile(file);
-  };
 
   createEffect(() => {
     if (levelNameEditing()) {
@@ -144,16 +128,6 @@ export const SidePanel = (props: SidePanelProps) => {
       shadow={'xl'}
       aria-label={'Level structure'}
     >
-      <input
-        ref={(element) => {
-          levelFileInput = element;
-        }}
-        type={'file'}
-        accept={LEVEL_FILE_ACCEPT}
-        aria-label={'Level JSON file'}
-        hidden
-        onChange={handleLevelFileChange}
-      />
       <Box
         pos={'sticky'}
         direction={'row'}
@@ -173,12 +147,21 @@ export const SidePanel = (props: SidePanelProps) => {
               label: '레벨 저장',
               icon: FileDown,
               onClick: props.onSaveLevel,
+              shortcut: getShortcutDisplay(shortcutById['save-level']),
+              ariaKeyShortcuts: getShortcutAriaKeys(shortcutById['save-level']),
+            },
+            {
+              label: 'UE Export',
+              icon: FileOutput,
+              onClick: props.onExportUnrealLevel,
             },
             {
               label: '레벨 불러오기',
               disabled: props.levelLoadPending,
               icon: FileUp,
-              onClick: handleOpenLevelFileInput,
+              onClick: props.onOpenLevelFile,
+              shortcut: getShortcutDisplay(shortcutById['open-level']),
+              ariaKeyShortcuts: getShortcutAriaKeys(shortcutById['open-level']),
             },
           ]}
         >

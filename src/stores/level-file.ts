@@ -8,7 +8,7 @@ export const LEVEL_FILE_ACCEPT = 'application/json,.json,.level.json';
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const sanitizeFileName = (value: string) => {
+export const sanitizeFileName = (value: string) => {
   const fileName = value
     .trim()
     .replace(/[<>:"/\\|?*]+/gu, '-')

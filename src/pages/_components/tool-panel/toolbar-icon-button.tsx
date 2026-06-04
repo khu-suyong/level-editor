@@ -3,16 +3,22 @@ import { Box, Button, Tooltip } from '@suis-ui/kit';
 import { Icon, type IconType } from '@/components/ui/icon';
 
 type ToolbarIconButtonProps = {
+  ariaKeyShortcuts?: string;
   active?: boolean;
   disabled?: boolean;
   icon: IconType;
   label: string;
   onClick: () => void;
+  shortcut?: string;
 };
 
 export const ToolbarIconButton = (props: ToolbarIconButtonProps) => (
   <Tooltip
-    content={<Box text={'caption'}>{props.label}</Box>}
+    content={
+      <Box text={'caption'}>
+        {props.shortcut ? `${props.label} (${props.shortcut})` : props.label}
+      </Box>
+    }
     placement={'top'}
     withArrow
     offset={12}
@@ -26,6 +32,7 @@ export const ToolbarIconButton = (props: ToolbarIconButtonProps) => (
         active={props.active}
         disabled={props.disabled}
         aria-label={props.label}
+        aria-keyshortcuts={props.ariaKeyShortcuts}
         onClick={props.onClick}
       >
         <Icon name={props.icon} />

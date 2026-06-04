@@ -2,7 +2,7 @@ import { map } from 'nanostores';
 
 import type { Cell, TilePlacement } from '@/models/level';
 
-export type EditorTool = 'select' | 'brush' | 'erase' | 'pan';
+export type EditorTool = 'select' | 'brush' | 'fill' | 'erase' | 'pan';
 
 export type TileClipboard = {
   width: number;

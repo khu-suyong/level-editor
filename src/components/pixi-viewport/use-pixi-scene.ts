@@ -31,6 +31,7 @@ import {
   getCellRect,
   getLayerTileBounds,
   layerBoundsToTileBounds,
+  resolveFloodFillCells,
   type TileBounds,
 } from './util';
 
@@ -794,6 +795,45 @@ export const usePixiScene = ({
           ),
         );
       }
+      return;
+    }
+
+    if (selectedTool() === 'fill') {
+      const targetCell = hoverCell();
+      const activeLayer = snapshot().layers.find(
+        (layer) => layer.id === activeLayerId(),
+      );
+
+      if (!targetCell || !activeLayer) {
+        return;
+      }
+
+      if (resolveFloodFillCells(activeLayer, targetCell).length === 0) {
+        return;
+      }
+
+      const rect = getCellRect(targetCell, currentGridSize);
+      const tileStyle = getTileStyle(snapshot(), brushTileId());
+      const previewTile = new Graphics();
+
+      previewTile
+        .rect(rect.x + 1, rect.y + 1, currentGridSize - 2, currentGridSize - 2)
+        .fill({
+          color: paletteColorToHex(
+            tileStyle.backgroundColor,
+            DEFAULT_TILE_BACKGROUND_COLOR,
+          ),
+          alpha: 0.24,
+        })
+        .stroke({
+          color: 0x38bdf8,
+          alpha: 0.56,
+          width: lineWidth,
+        });
+      current.preview.addChild(
+        previewTile,
+        drawTileIcon(rect, tileStyle, lineWidth, 0.72, currentGridSize),
+      );
       return;
     }
 

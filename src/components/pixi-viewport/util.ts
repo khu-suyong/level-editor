@@ -92,6 +92,116 @@ export const isCellInTileBounds = (cell: Cell, bounds: TileBounds) =>
   cell.y >= bounds.minY &&
   cell.y <= bounds.maxY;
 
+const floodFillNeighborDeltas: Cell[] = [
+  { x: 1, y: 0 },
+  { x: -1, y: 0 },
+  { x: 0, y: 1 },
+  { x: 0, y: -1 },
+];
+
+const expandTileBounds = (bounds: TileBounds, padding: number): TileBounds => ({
+  minX: bounds.minX - padding,
+  maxX: bounds.maxX + padding,
+  minY: bounds.minY - padding,
+  maxY: bounds.maxY + padding,
+});
+
+const isCellOnTileBoundsEdge = (cell: Cell, bounds: TileBounds) =>
+  cell.x === bounds.minX ||
+  cell.x === bounds.maxX ||
+  cell.y === bounds.minY ||
+  cell.y === bounds.maxY;
+
+export const resolveFloodFillCells = (layer: LevelLayer, startCell: Cell) => {
+  const tilesByCoordinate = new Map(
+    layer.tiles.map((tile) => [coordinateKey(tile), tile]),
+  );
+  const startTile = tilesByCoordinate.get(coordinateKey(startCell)) ?? null;
+  const visited = new Set<string>();
+  const fillCells: Cell[] = [];
+  const queue: Cell[] = [startCell];
+
+  if (startTile) {
+    for (let index = 0; index < queue.length; index += 1) {
+      const cell = queue[index];
+      const cellKey = coordinateKey(cell);
+
+      if (visited.has(cellKey)) {
+        continue;
+      }
+
+      visited.add(cellKey);
+
+      if (tilesByCoordinate.get(cellKey)?.tileId !== startTile.tileId) {
+        continue;
+      }
+
+      fillCells.push(cell);
+
+      for (const delta of floodFillNeighborDeltas) {
+        const neighbor = {
+          x: cell.x + delta.x,
+          y: cell.y + delta.y,
+        };
+
+        if (!visited.has(coordinateKey(neighbor))) {
+          queue.push(neighbor);
+        }
+      }
+    }
+
+    return fillCells;
+  }
+
+  const boundedFillBounds = layer.bounds
+    ? layerBoundsToTileBounds(layer.bounds)
+    : null;
+  const tileBounds = getTileBounds(layer.tiles);
+  const fillBounds =
+    boundedFillBounds ?? (tileBounds ? expandTileBounds(tileBounds, 1) : null);
+
+  if (!fillBounds || !isCellInTileBounds(startCell, fillBounds)) {
+    return [];
+  }
+
+  for (let index = 0; index < queue.length; index += 1) {
+    const cell = queue[index];
+    const cellKey = coordinateKey(cell);
+
+    if (visited.has(cellKey)) {
+      continue;
+    }
+
+    visited.add(cellKey);
+
+    if (
+      tilesByCoordinate.has(cellKey) ||
+      !isCellInTileBounds(cell, fillBounds)
+    ) {
+      continue;
+    }
+
+    if (!boundedFillBounds && isCellOnTileBoundsEdge(cell, fillBounds)) {
+      return [];
+    }
+
+    fillCells.push(cell);
+
+    for (const delta of floodFillNeighborDeltas) {
+      const neighbor = {
+        x: cell.x + delta.x,
+        y: cell.y + delta.y,
+      };
+
+      if (!visited.has(coordinateKey(neighbor))) {
+        queue.push(neighbor);
+      }
+    }
+  }
+
+  return fillCells;
+};
+
 export const tileColor = (tileId: number) => {
   const colors = [0x2563eb, 0x059669, 0xdc2626, 0xd97706, 0x7c3aed, 0x0891b2];
 
@@ -102,14 +212,3 @@ export const getCellRect = (cell: Cell, gridSize: number) => ({
   x: cell.x * gridSize,
   y: cell.y * gridSize,
 });
-
-export const isEditableTarget = (target: EventTarget | null) => {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-
-  return (
-    target.isContentEditable ||
-    target.matches('input, textarea, select, button')
-  );
-};

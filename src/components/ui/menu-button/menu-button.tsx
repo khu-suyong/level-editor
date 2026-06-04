@@ -10,10 +10,12 @@ import { createSignal, For, splitProps, type ValidComponent } from 'solid-js';
 import { Icon, type IconType } from '../icon';
 
 type MenuItem = {
+  ariaKeyShortcuts?: string;
   label: string;
   disabled?: boolean;
   icon?: IconType;
   onClick: () => void;
+  shortcut?: string;
 };
 type PopupOnlyProps = {
   animation?: Record<string, string>;
@@ -91,9 +93,17 @@ export const MenuButton = <T extends ValidComponent = 'button'>(
                 as={Button}
                 variant={'ghost'}
                 aria-disabled={item.disabled}
+                aria-keyshortcuts={item.ariaKeyShortcuts}
                 c={item.disabled ? 'text.disabled' : undefined}
                 title={item.label}
                 media={item.icon ? <Icon name={item.icon} /> : undefined}
+                action={
+                  item.shortcut ? (
+                    <Box as={'span'} text={'caption'} c={'text.caption'}>
+                      {item.shortcut}
+                    </Box>
+                  ) : undefined
+                }
                 onClick={() => handleItemClick(item)}
                 style={{
                   'pointer-events': item.disabled ? 'none' : 'auto',
