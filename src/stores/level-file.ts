@@ -58,6 +58,10 @@ const normalizeLegacyTileMapping = (
   return {
     ...tileMapping,
     cvShapes: normalizeLegacyCvShapes(tileMapping.cvShapes, mappedShapes),
+    isTerrain:
+      typeof tileMapping.isTerrain === 'boolean'
+        ? tileMapping.isTerrain
+        : false,
   };
 };
 

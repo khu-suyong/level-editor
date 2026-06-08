@@ -19,10 +19,11 @@ export const getUsedTileCount = (level: LevelData, tileId: number) =>
 
 export const getPaletteDescription = (level: LevelData, tile: TileMapping) => {
   const usedCount = getUsedTileCount(level, tile.tileId);
+  const terrain = tile.isTerrain ? 'Terrain' : 'Object';
   const shapes =
     tile.cvShapes.length > 0 ? `${tile.cvShapes.join(', ')}` : 'No Mapping';
 
-  return `${usedCount} used / ${shapes}`;
+  return `${usedCount} used / ${terrain} / ${shapes}`;
 };
 
 export const getReplacementValue = (value: ReplacementRenderValue) =>

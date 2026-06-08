@@ -12,6 +12,11 @@ import type {
 } from '@/models/level';
 
 import { currentSnapshot } from './history';
+import {
+  cloneTerrainExportTileLabels,
+  createEmptyTerrainExportTileLabels,
+  normalizeTerrainTileFields,
+} from './terrain';
 
 export const CV_SHAPE_PRESETS = [
   'structure',
@@ -108,12 +113,21 @@ const cloneLayer = (layer: LevelLayer): LevelLayer => ({
 export const clonePaletteTile = (tile: TileMapping): TileMapping => ({
   ...tile,
   cvShapes: [...tile.cvShapes],
+  isTerrain: Boolean(tile.isTerrain),
+  ...(tile.terrainExportTileLabels
+    ? {
+        terrainExportTileLabels: cloneTerrainExportTileLabels(
+          tile.terrainExportTileLabels,
+        ),
+      }
+    : {}),
 });
 
-export const normalizePaletteTile = (tile: TileMapping): TileMapping => ({
-  ...clonePaletteTile(tile),
-  name: normalizeTileName(tile.name),
-});
+export const normalizePaletteTile = (tile: TileMapping): TileMapping =>
+  normalizeTerrainTileFields({
+    ...clonePaletteTile(tile),
+    name: normalizeTileName(tile.name),
+  });
 
 export const cloneLevelData = (level: LevelData): LevelData => ({
   ...level,
@@ -182,6 +196,8 @@ export const createRandomPaletteTile = (
     icon: randomItem(TILE_ICON_PRESETS),
     iconColor: randomItem(iconColors),
     cvShapes: [...cvShapes],
+    isTerrain: false,
+    terrainExportTileLabels: createEmptyTerrainExportTileLabels(),
   };
 };
 
@@ -233,6 +249,15 @@ export const validatePaletteTiles = (tileTable: readonly TileMapping[]) => {
       }
 
       cvShapes.add(shape);
+    }
+
+    if (tile.isTerrain && tile.terrainExportTileLabels) {
+      for (const label of Object.values(tile.terrainExportTileLabels)) {
+        if (typeof label !== 'string') {
+          errors.push('Terrain export labels must be strings.');
+          break;
+        }
+      }
     }
   }
 

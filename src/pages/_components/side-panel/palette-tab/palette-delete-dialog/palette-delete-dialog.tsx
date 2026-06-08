@@ -65,6 +65,7 @@ export const PaletteDeleteDialog = (props: PaletteDeleteDialogProps) => {
             onChangeValue={props.onChangeReplacement}
             data={props.replacementOptions}
             placeholder={'대체 타일'}
+            strategy={'fixed'}
             contentProps={selectContentProps}
             renderValue={(value: ReplacementRenderValue) =>
               getReplacementLabel(getReplacementValue(value))

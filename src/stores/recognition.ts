@@ -15,7 +15,6 @@ import type {
 
 import { currentSnapshot, replaceLevel } from './history';
 import {
-  buildCvShapeMapping,
   createRandomPaletteTile,
   isCvShape,
   normalizeCvShape,
@@ -56,7 +55,8 @@ export type RecognitionLayerBuildResult = {
 const DEFAULT_VIEWPORT_WIDTH = 1024;
 const DARK_PIXEL_COVERAGE_THRESHOLD = 0.008;
 const DARK_PIXEL_LUMINANCE_THRESHOLD = 200;
-const FALLBACK_PIXEL_SHAPE = 'structure' satisfies CvShape;
+const STRUCTURE_CV_SHAPE = 'structure' satisfies CvShape;
+const FALLBACK_PIXEL_SHAPE = STRUCTURE_CV_SHAPE;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -151,6 +151,31 @@ const getObjectCellRange = (
     maxX: Math.ceil(clippedRight) - 1,
     minY: Math.floor(clippedBottom),
     maxY: Math.ceil(clippedTop) - 1,
+  };
+};
+
+const getObjectCenterCell = (
+  object: RecognizedObject,
+  payload: RecognitionPayload,
+  bounds: LayerBounds,
+): Cell => {
+  const boundsTop = bounds.y + bounds.height;
+  const scaleX = bounds.width / payload.image.width;
+  const scaleY = bounds.height / payload.image.height;
+  const projectedCenterX = bounds.x + (object.x + object.width / 2) * scaleX;
+  const projectedCenterY = boundsTop - (object.y + object.height / 2) * scaleY;
+
+  return {
+    x: clamp(
+      Math.round(projectedCenterX - 0.5),
+      bounds.x,
+      bounds.x + bounds.width - 1,
+    ),
+    y: clamp(
+      Math.round(projectedCenterY - 0.5),
+      bounds.y,
+      bounds.y + bounds.height - 1,
+    ),
   };
 };
 
@@ -396,49 +421,85 @@ const buildTileMappingResolver = (
   level: LevelData,
   createMissingTiles = true,
 ) => {
-  const shapeTileIds = buildCvShapeMapping(level.tileTable);
+  const shapeTiles = new Map(
+    level.tileTable.flatMap((tile) =>
+      tile.cvShapes.map((shape) => [shape, tile] as const),
+    ),
+  );
   const tileMappings: TileMapping[] = [];
 
-  const resolveTileId = (rawShape: string) => {
+  const resolveTile = (rawShape: string): TileMapping | null => {
     const normalizedShape = normalizeCvShape(rawShape);
 
     if (!isCvShape(normalizedShape)) {
       return null;
     }
 
-    const existingTileId = shapeTileIds.get(normalizedShape);
+    const existingTile = shapeTiles.get(normalizedShape);
 
-    if (existingTileId !== undefined) {
-      return existingTileId;
+    if (existingTile) {
+      return existingTile;
     }
 
     if (!createMissingTiles) {
       return null;
     }
 
-    const tileMapping = createRandomPaletteTile(
+    const createdTileMapping = createRandomPaletteTile(
       [...level.tileTable, ...tileMappings],
       [normalizedShape],
     );
+    const tileMapping =
+      normalizedShape === STRUCTURE_CV_SHAPE
+        ? {
+            ...createdTileMapping,
+            isTerrain: true,
+          }
+        : createdTileMapping;
 
     tileMappings.push(tileMapping);
-    shapeTileIds.set(normalizedShape, tileMapping.tileId);
+    shapeTiles.set(normalizedShape, tileMapping);
 
-    return tileMapping.tileId;
+    return tileMapping;
   };
 
   return {
-    resolveTileId,
+    resolveTile,
     tileMappings,
   };
 };
 
-const resolveTileIdWithFallback = (
+const hasStructureRecognizedObject = (payload: RecognitionPayload) =>
+  payload.objects.some(
+    (object) => normalizeCvShape(object.shape) === STRUCTURE_CV_SHAPE,
+  );
+
+export const getNonTerrainStructureTileMapping = (
+  level: LevelData,
+  payload: RecognitionPayload,
+): TileMapping | null => {
+  if (!hasStructureRecognizedObject(payload)) {
+    return null;
+  }
+
+  return (
+    level.tileTable.find(
+      (tile) => tile.cvShapes.includes(STRUCTURE_CV_SHAPE) && !tile.isTerrain,
+    ) ?? null
+  );
+};
+
+const resolveTileWithFallback = (
   shape: string,
   tileMappingResolver: ReturnType<typeof buildTileMappingResolver>,
 ) =>
-  tileMappingResolver.resolveTileId(shape) ??
-  tileMappingResolver.resolveTileId(FALLBACK_PIXEL_SHAPE);
+  tileMappingResolver.resolveTile(shape) ??
+  tileMappingResolver.resolveTile(FALLBACK_PIXEL_SHAPE);
+
+const getTargetTile = (
+  target: RecognizedObjectTarget,
+  tileMappingResolver: ReturnType<typeof buildTileMappingResolver>,
+) => tileMappingResolver.resolveTile(target.object.shape);
 
 const buildObjectBoundsTiles = (
   importId: string,
@@ -452,9 +513,9 @@ const buildObjectBoundsTiles = (
       continue;
     }
 
-    const tileId = tileMappingResolver.resolveTileId(target.object.shape);
+    const tile = getTargetTile(target, tileMappingResolver);
 
-    if (tileId === null) {
+    if (!tile?.isTerrain) {
       continue;
     }
 
@@ -463,7 +524,7 @@ const buildObjectBoundsTiles = (
         tileMap.set(coordinateKey({ x, y }), {
           x,
           y,
-          tileId,
+          tileId: tile.tileId,
           source: {
             type: 'recognition',
             importId,
@@ -472,6 +533,38 @@ const buildObjectBoundsTiles = (
         });
       }
     }
+  }
+
+  return tileMap;
+};
+
+const buildObjectCenterTiles = (
+  payload: RecognitionPayload,
+  bounds: LayerBounds,
+  importId: string,
+  targets: RecognizedObjectTarget[],
+  tileMappingResolver: ReturnType<typeof buildTileMappingResolver>,
+) => {
+  const tileMap = new Map<string, TilePlacement>();
+
+  for (const target of targets) {
+    const tile = getTargetTile(target, tileMappingResolver);
+
+    if (!tile || tile.isTerrain) {
+      continue;
+    }
+
+    const cell = getObjectCenterCell(target.object, payload, bounds);
+
+    tileMap.set(coordinateKey(cell), {
+      ...cell,
+      tileId: tile.tileId,
+      source: {
+        type: 'recognition',
+        importId,
+        objectId: target.objectId,
+      },
+    });
   }
 
   return tileMap;
@@ -500,18 +593,18 @@ const buildImagePixelTiles = (
       }
 
       const target = findObjectTargetForCell(cell, targets);
-      const tileId = resolveTileIdWithFallback(
+      const tile = resolveTileWithFallback(
         target?.object.shape ?? FALLBACK_PIXEL_SHAPE,
         tileMappingResolver,
       );
 
-      if (tileId === null) {
+      if (!tile?.isTerrain) {
         continue;
       }
 
       tileMap.set(coordinateKey(cell), {
         ...cell,
-        tileId,
+        tileId: tile.tileId,
         source: {
           type: 'recognition',
           importId,
@@ -571,7 +664,7 @@ const buildRecognitionLayerAsync = async (
     bounds,
     importId,
   );
-  const tileMap = imageAsset
+  const terrainTileMap = imageAsset
     ? buildImagePixelTiles(
         sourcePayload,
         bounds,
@@ -581,6 +674,14 @@ const buildRecognitionLayerAsync = async (
         tileMappingResolver,
       )
     : buildObjectBoundsTiles(importId, objectTargets, tileMappingResolver);
+  const objectCenterTileMap = buildObjectCenterTiles(
+    sourcePayload,
+    bounds,
+    importId,
+    objectTargets,
+    tileMappingResolver,
+  );
+  const tileMap = new Map([...terrainTileMap, ...objectCenterTileMap]);
 
   return {
     importId,
@@ -622,16 +723,23 @@ export const rebuildRecognitionLayerTiles = async (
     layer.source.importId,
   );
 
-  return sortTileMap(
-    buildImagePixelTiles(
-      imageAsset.payload,
-      bounds,
-      layer.source.importId,
-      imageAsset.imageData,
-      objectTargets,
-      tileMappingResolver,
-    ),
+  const terrainTileMap = buildImagePixelTiles(
+    imageAsset.payload,
+    bounds,
+    layer.source.importId,
+    imageAsset.imageData,
+    objectTargets,
+    tileMappingResolver,
   );
+  const objectCenterTileMap = buildObjectCenterTiles(
+    imageAsset.payload,
+    bounds,
+    layer.source.importId,
+    objectTargets,
+    tileMappingResolver,
+  );
+
+  return sortTileMap(new Map([...terrainTileMap, ...objectCenterTileMap]));
 };
 
 export const insertRecognitionLayer = (

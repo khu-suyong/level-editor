@@ -21,7 +21,11 @@ import {
 } from '@/helpers/editor-shortcuts';
 import { clampGridSize, DEFAULT_GRID_SIZE } from '@/helpers/grid-size';
 import { PixiViewport } from '../components/pixi-viewport';
-import type { LevelData, RecognitionPayload } from '../models/level';
+import type {
+  LevelData,
+  RecognitionPayload,
+  TileMapping,
+} from '../models/level';
 import {
   editorStore,
   setActiveLayerId,
@@ -55,7 +59,12 @@ import {
   parseLevelFileText,
   serializeLevelData,
 } from '../stores/level-file';
-import { insertRecognitionLayer } from '../stores/recognition';
+import { updatePaletteTileInLevel } from '../stores/palette';
+import {
+  getNonTerrainStructureTileMapping,
+  insertRecognitionLayer,
+} from '../stores/recognition';
+import { createEmptyTerrainExportTileLabels } from '../stores/terrain';
 import {
   getUnrealExportFileName,
   serializeUnrealExportData,
@@ -78,6 +87,18 @@ const defaultLevel: LevelData = {
       icon: 'star',
       iconColor: '#f8fafc',
       cvShapes: [],
+      isTerrain: false,
+      terrainExportTileLabels: {
+        center: '',
+        top: '',
+        bottom: '',
+        left: '',
+        right: '',
+        topLeft: '',
+        topRight: '',
+        bottomLeft: '',
+        bottomRight: '',
+      },
     },
   ],
   layers: [
@@ -103,6 +124,12 @@ initializeHistory(defaultLevel);
 type PendingLevelFile = {
   fileName: string;
   level: LevelData;
+};
+
+type StructureTerrainConfirmation = {
+  payload: RecognitionPayload;
+  tile: TileMapping;
+  resolve: (convertToTerrain: boolean) => void;
 };
 
 const browserDefaultShortcutIds = new Set<ShortcutActionId>([
@@ -147,6 +174,8 @@ export default function HomePage() {
   const [levelFileLoadPending, setLevelFileLoadPending] = createSignal(false);
   const [pendingLevelFile, setPendingLevelFile] =
     createSignal<PendingLevelFile | null>(null);
+  const [structureTerrainConfirmation, setStructureTerrainConfirmation] =
+    createSignal<StructureTerrainConfirmation | null>(null);
   const [levelFileError, setLevelFileError] = createSignal<string | null>(null);
   const [unrealExportError, setUnrealExportError] = createSignal<string | null>(
     null,
@@ -329,9 +358,7 @@ export default function HomePage() {
 
     setSelection([]);
   };
-  const handleInsertRecognitionPayload = async (
-    payload: RecognitionPayload,
-  ) => {
+  const insertRecognitionPayload = async (payload: RecognitionPayload) => {
     const layerId = await insertRecognitionLayer(payload, {
       tileSize: level().gridSize,
       viewportWidth: window.innerWidth,
@@ -346,6 +373,80 @@ export default function HomePage() {
     setSelection([]);
 
     return layerId;
+  };
+  const requestStructureTerrainConfirmation = (
+    payload: RecognitionPayload,
+    tile: TileMapping,
+  ) =>
+    new Promise<boolean>((resolve) => {
+      setStructureTerrainConfirmation({
+        payload,
+        tile,
+        resolve,
+      });
+    });
+  const resolveStructureTerrainConfirmation = (convertToTerrain: boolean) => {
+    const pending = structureTerrainConfirmation();
+
+    if (!pending) {
+      return;
+    }
+
+    setStructureTerrainConfirmation(null);
+    pending.resolve(convertToTerrain);
+  };
+  const handleKeepStructureTileAsObject = () => {
+    resolveStructureTerrainConfirmation(false);
+  };
+  const handleConvertStructureTileToTerrain = () => {
+    resolveStructureTerrainConfirmation(true);
+  };
+  const getStructureTerrainConfirmationMessage = () => {
+    const pending = structureTerrainConfirmation();
+
+    if (!pending) {
+      return '';
+    }
+
+    return `structure 타입이 기존 팔레트 타일 "${pending.tile.name}"에 매핑되어 있습니다. 이 타일을 지형으로 바꿀까요?`;
+  };
+  const convertStructureTileToTerrain = (tileId: number) => {
+    const currentLevel = level();
+    const currentTile = currentLevel.tileTable.find(
+      (tile) => tile.tileId === tileId,
+    );
+
+    if (!currentTile) {
+      return;
+    }
+
+    replaceLevel(
+      updatePaletteTileInLevel(currentLevel, currentTile.tileId, {
+        ...currentTile,
+        isTerrain: true,
+        terrainExportTileLabels:
+          currentTile.terrainExportTileLabels ??
+          createEmptyTerrainExportTileLabels(),
+      }),
+    );
+  };
+  const handleInsertRecognitionPayload = async (
+    payload: RecognitionPayload,
+  ) => {
+    const structureTile = getNonTerrainStructureTileMapping(level(), payload);
+
+    if (structureTile) {
+      const convertToTerrain = await requestStructureTerrainConfirmation(
+        payload,
+        structureTile,
+      );
+
+      if (convertToTerrain) {
+        convertStructureTileToTerrain(structureTile.tileId);
+      }
+    }
+
+    return insertRecognitionPayload(payload);
   };
   const handleImportRecognitionImage = (file: File) => {
     recognitionUploadMutation.mutate(file);
@@ -647,10 +748,35 @@ export default function HomePage() {
         open={recognitionResultsOpen()}
         payloads={recognitionPayloads()}
         selectedIndex={selectedRecognitionIndex()}
-        onClose={handleCloseRecognitionResults}
+        onClose={
+          structureTerrainConfirmation()
+            ? handleKeepStructureTileAsObject
+            : handleCloseRecognitionResults
+        }
         onInsertPayload={handleInsertRecognitionPayload}
         onSelectIndex={setSelectedRecognitionIndex}
       />
+      <Dialog
+        open={Boolean(structureTerrainConfirmation())}
+        title={'지형 타일 전환'}
+        onClose={handleKeepStructureTileAsObject}
+        closeOnBackdrop={false}
+        footer={
+          <>
+            <Button variant={'ghost'} onClick={handleKeepStructureTileAsObject}>
+              {'그대로 삽입'}
+            </Button>
+            <Button
+              variant={'primary'}
+              onClick={handleConvertStructureTileToTerrain}
+            >
+              {'지형으로 전환'}
+            </Button>
+          </>
+        }
+      >
+        <Box text={'body'}>{getStructureTerrainConfirmationMessage()}</Box>
+      </Dialog>
       <ShortcutHelpDialog
         open={shortcutHelpOpen()}
         onClose={handleCloseShortcutHelp}

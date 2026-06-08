@@ -7,6 +7,7 @@ import type {
   TileMapping,
   TilePlacement,
 } from '@/models/level';
+import { cloneTerrainExportTileLabels } from './terrain';
 
 export type LayerMoveDirection = 'up' | 'down';
 
@@ -43,6 +44,14 @@ const cloneTile = (tile: TilePlacement): TilePlacement => ({
 const cloneTileMapping = (tileMapping: TileMapping): TileMapping => ({
   ...tileMapping,
   cvShapes: [...tileMapping.cvShapes],
+  isTerrain: Boolean(tileMapping.isTerrain),
+  ...(tileMapping.terrainExportTileLabels
+    ? {
+        terrainExportTileLabels: cloneTerrainExportTileLabels(
+          tileMapping.terrainExportTileLabels,
+        ),
+      }
+    : {}),
 });
 
 const cloneLayer = (layer: LevelLayer): LevelLayer => ({

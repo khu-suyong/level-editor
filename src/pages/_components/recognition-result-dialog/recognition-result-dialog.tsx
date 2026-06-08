@@ -180,6 +180,7 @@ export const RecognitionResultDialog = (
           onChangeValue={handleSelectValue}
           data={options()}
           placeholder={'인식 결과 없음'}
+          strategy={'fixed'}
           contentProps={selectContentProps}
           renderValue={(value: RecognitionResultRenderValue) =>
             getOptionLabel(getSelectValue(value))

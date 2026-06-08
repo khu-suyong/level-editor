@@ -25,6 +25,21 @@ export type TileIcon = z.infer<typeof TileIconSchema>;
 export const CvShapeSchema = z.enum(['structure', 'triangle', 'star']);
 export type CvShape = z.infer<typeof CvShapeSchema>;
 
+export const TerrainExportTileLabelsSchema = z.object({
+  center: z.string().default(''),
+  top: z.string().default(''),
+  bottom: z.string().default(''),
+  left: z.string().default(''),
+  right: z.string().default(''),
+  topLeft: z.string().default(''),
+  topRight: z.string().default(''),
+  bottomLeft: z.string().default(''),
+  bottomRight: z.string().default(''),
+});
+export type TerrainExportTileLabels = z.infer<
+  typeof TerrainExportTileLabelsSchema
+>;
+
 export type LayerBounds = z.infer<typeof LayerBoundsSchema>;
 export const LayerBoundsSchema = z.object({
   x: z.number().int(),
@@ -51,6 +66,8 @@ export const TileMappingSchema = z.object({
   icon: TileIconSchema,
   iconColor: hexColorSchema,
   cvShapes: CvShapeSchema.array(),
+  isTerrain: z.boolean().default(false),
+  terrainExportTileLabels: TerrainExportTileLabelsSchema.optional(),
 });
 export type PaletteTile = TileMapping;
 

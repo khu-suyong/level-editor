@@ -19,6 +19,7 @@ import type {
   TilePlacement,
 } from '@/models/level';
 import { type EditorTool, setCanvasReady } from '@/stores/editor';
+import { createTerrainTileLookup, resolveTerrainEdges } from '@/stores/terrain';
 
 import * as styles from './pixi-viewport.css';
 import type {
@@ -91,6 +92,18 @@ const fallbackTile: TileMapping = {
   icon: 'star',
   iconColor: '#f8fafc',
   cvShapes: [],
+  isTerrain: false,
+  terrainExportTileLabels: {
+    center: '',
+    top: '',
+    bottom: '',
+    left: '',
+    right: '',
+    topLeft: '',
+    topRight: '',
+    bottomLeft: '',
+    bottomRight: '',
+  },
 };
 
 const clampColorChannel = (value: number) =>
@@ -263,6 +276,49 @@ const getRecognitionImageSource = (layer: LevelLayer) => {
   }
 
   return image.src ?? null;
+};
+
+const TERRAIN_OUTLINE_COLOR = 0x38bdf8;
+
+const drawTerrainOutline = (
+  rect: Cell,
+  edges: {
+    top: boolean;
+    bottom: boolean;
+    left: boolean;
+    right: boolean;
+  },
+  lineWidth: number,
+  gridSize: number,
+) => {
+  const outline = new Graphics();
+  const stroke = {
+    color: TERRAIN_OUTLINE_COLOR,
+    alpha: 0.88,
+    width: Math.max(lineWidth * 1.6, 1),
+  };
+  const left = rect.x + lineWidth;
+  const right = rect.x + gridSize - lineWidth;
+  const bottom = rect.y + lineWidth;
+  const top = rect.y + gridSize - lineWidth;
+
+  if (edges.top) {
+    outline.moveTo(left, top).lineTo(right, top).stroke(stroke);
+  }
+
+  if (edges.bottom) {
+    outline.moveTo(left, bottom).lineTo(right, bottom).stroke(stroke);
+  }
+
+  if (edges.left) {
+    outline.moveTo(left, bottom).lineTo(left, top).stroke(stroke);
+  }
+
+  if (edges.right) {
+    outline.moveTo(right, bottom).lineTo(right, top).stroke(stroke);
+  }
+
+  return outline;
 };
 
 const drawTileIcon = (
@@ -672,6 +728,7 @@ export const usePixiScene = ({
       (first, second) => first.order - second.order,
     )) {
       const isActiveLayer = layer.id === activeLayerId();
+      const terrainTilesByCoordinate = createTerrainTileLookup(layer);
 
       for (const tile of layer.tiles) {
         const rect = getCellRect(tile, currentGridSize);
@@ -683,7 +740,7 @@ export const usePixiScene = ({
         const fillInset = tileInset + lineWidth;
         const tileAlpha = isActiveLayer ? 0.82 : 0.36;
 
-        current.tileLayer.addChild(
+        const tileLayerObjects = [
           createRectSprite(
             rect.x + tileInset,
             rect.y + tileInset,
@@ -710,7 +767,27 @@ export const usePixiScene = ({
             isActiveLayer ? 0.9 : 0.46,
             currentGridSize,
           ),
-        );
+        ];
+
+        if (tileStyle.isTerrain) {
+          const terrainEdges = resolveTerrainEdges(
+            terrainTilesByCoordinate,
+            tile,
+          );
+
+          if (Object.values(terrainEdges).some(Boolean)) {
+            tileLayerObjects.push(
+              drawTerrainOutline(
+                rect,
+                terrainEdges,
+                lineWidth,
+                currentGridSize,
+              ),
+            );
+          }
+        }
+
+        current.tileLayer.addChild(...tileLayerObjects);
       }
     }
   };
@@ -1027,6 +1104,8 @@ export const usePixiScene = ({
 
   onMount(() => {
     let disposed = false;
+    let initialized = false;
+    let destroyed = false;
 
     isSceneDisposed = false;
 
@@ -1048,6 +1127,14 @@ export const usePixiScene = ({
       app.renderer.resize(host.clientWidth, host.clientHeight);
       redrawScene(current);
     });
+    const destroyApp = () => {
+      if (!initialized || destroyed) {
+        return;
+      }
+
+      destroyed = true;
+      app.destroy(true);
+    };
 
     void app
       .init({
@@ -1059,8 +1146,10 @@ export const usePixiScene = ({
         width: host.clientWidth,
       })
       .then(() => {
+        initialized = true;
+
         if (disposed) {
-          app.destroy();
+          destroyApp();
           return;
         }
 
@@ -1091,7 +1180,7 @@ export const usePixiScene = ({
       recognitionImageTextureCache.clear();
       resizeObserver.disconnect();
       setCanvasReady(false);
-      app.destroy(true);
+      destroyApp();
     });
   });
 

@@ -2,7 +2,13 @@ import { Box, Popup } from '@suis-ui/kit';
 import { FocusManager, type FocusManagerProps } from '@suis-ui/primitives';
 import { createSignal, createUniqueId, type JSX, Show } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { anchorStyle, backdropStyle, dialogAnimation } from './dialog.css';
+import {
+  anchorStyle,
+  backdropStyle,
+  bodyStyle,
+  dialogAnimation,
+  panelStyle,
+} from './dialog.css';
 
 type DialogProps = {
   open: boolean;
@@ -77,12 +83,13 @@ export const Dialog = (props: DialogProps) => {
             >
               <Box
                 ref={setPanelElement}
+                class={panelStyle}
                 role={'dialog'}
                 aria-modal={true}
                 aria-labelledby={titleId}
                 aria-describedby={props.description ? descriptionId : undefined}
                 tabIndex={-1}
-                minW={'30rem'}
+                minW={'min(30rem, calc(100vw - 2rem))'}
                 bg={'surface.main'}
                 bc={'surface.higher'}
                 shadow={'md'}
@@ -100,7 +107,9 @@ export const Dialog = (props: DialogProps) => {
                     </Box>
                   )}
                 </Show>
-                {props.children}
+                <Box class={bodyStyle} w={'100%'} gap={'md'}>
+                  {props.children}
+                </Box>
                 <Show when={props.footer}>
                   {(footer) => (
                     <Box direction={'row'} justify={'flex-end'} gap={'xs'}>

@@ -1,6 +1,7 @@
 import {
   Box,
   Button,
+  CheckBox,
   Input,
   Select,
   SelectItem,
@@ -8,13 +9,19 @@ import {
   vars,
 } from '@suis-ui/kit';
 import { Plus, Save, X } from 'lucide-solid';
-import { createEffect, createSignal, For } from 'solid-js';
+import { createEffect, createSignal, For, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 
 import { Dialog } from '@/components/ui/dialog';
 import { Icon } from '@/components/ui/icon';
 import { CvShapeIconMap, TileIconMap } from '@/helpers/constants';
-import type { CvShape, LevelData, TileIcon, TileMapping } from '@/models/level';
+import type {
+  CvShape,
+  LevelData,
+  TerrainExportTileLabels,
+  TileIcon,
+  TileMapping,
+} from '@/models/level';
 import {
   CV_SHAPE_PRESETS,
   clonePaletteTile,
@@ -22,6 +29,10 @@ import {
   TILE_ICON_PRESETS,
   validatePaletteTileUpdate,
 } from '@/stores/palette';
+import {
+  createEmptyTerrainExportTileLabels,
+  TERRAIN_EXPORT_LABEL_KEYS,
+} from '@/stores/terrain';
 import { ColorInput } from '../color-input';
 import { selectContentProps } from '../palette-tab.utils';
 
@@ -43,6 +54,26 @@ type PaletteTileDialogProps = {
 
 const iconOptions = [...TILE_ICON_PRESETS];
 const shapeOptions = [...CV_SHAPE_PRESETS];
+const terrainExportLabelKeys = [
+  'topLeft',
+  'top',
+  'topRight',
+  'left',
+  'center',
+  'right',
+  'bottomLeft',
+  'bottom',
+  'bottomRight',
+] as const satisfies ReadonlyArray<keyof TerrainExportTileLabels>;
+const terrainExportLabelOrder = new Map(
+  terrainExportLabelKeys.map((key, index) => [key, index]),
+);
+const getTerrainExportLabelOrder = (key: keyof TerrainExportTileLabels) =>
+  terrainExportLabelOrder.get(key) ?? Number.MAX_SAFE_INTEGER;
+const sortedTerrainExportLabelKeys = [...TERRAIN_EXPORT_LABEL_KEYS].sort(
+  (first, second) =>
+    getTerrainExportLabelOrder(first) - getTerrainExportLabelOrder(second),
+);
 
 export const PaletteTileDialog = (props: PaletteTileDialogProps) => {
   const [draft, setDraft] = createSignal<TileMapping>(
@@ -58,6 +89,9 @@ export const PaletteTileDialog = (props: PaletteTileDialogProps) => {
       ...current,
       ...update,
       cvShapes: update.cvShapes ?? current.cvShapes,
+      isTerrain: update.isTerrain ?? current.isTerrain,
+      terrainExportTileLabels:
+        update.terrainExportTileLabels ?? current.terrainExportTileLabels,
     }));
     setStatus(null);
   };
@@ -86,6 +120,26 @@ export const PaletteTileDialog = (props: PaletteTileDialogProps) => {
       cvShapes: draft().cvShapes.filter(
         (_, currentIndex) => currentIndex !== index,
       ),
+    });
+  };
+  const terrainLabels = () =>
+    draft().terrainExportTileLabels ?? createEmptyTerrainExportTileLabels();
+  const updateTerrainLabel = (
+    key: keyof TerrainExportTileLabels,
+    value: string,
+  ) => {
+    updateDraft({
+      terrainExportTileLabels: {
+        ...terrainLabels(),
+        [key]: value,
+      },
+    });
+  };
+  const toggleTerrain = (checked: boolean) => {
+    updateDraft({
+      isTerrain: checked,
+      terrainExportTileLabels:
+        draft().terrainExportTileLabels ?? createEmptyTerrainExportTileLabels(),
     });
   };
   const handleSave = () => {
@@ -174,6 +228,7 @@ export const PaletteTileDialog = (props: PaletteTileDialogProps) => {
             value ? updateDraft({ icon: value as TileIcon }) : undefined
           }
           data={iconOptions}
+          strategy={'fixed'}
           contentProps={selectContentProps}
           renderValue={(value: TileIcon) => (
             <Box direction={'row'} align={'center'} gap={'xs'}>
@@ -214,6 +269,48 @@ export const PaletteTileDialog = (props: PaletteTileDialogProps) => {
           onInput={(value) => updateDraft({ iconColor: value })}
         />
       </Box>
+      <Box w={'100%'} gap={'xs'}>
+        <Box as={'label'} text={'caption'} c={'text.caption'}>
+          {'지형'}
+        </Box>
+        <CheckBox
+          name={'지형 export label 사용'}
+          checked={draft().isTerrain}
+          onChecked={toggleTerrain}
+        />
+      </Box>
+      <Show when={draft().isTerrain}>
+        <Box w={'100%'} gap={'xs'}>
+          <Box as={'label'} text={'caption'} c={'text.caption'}>
+            {'Export Label'}
+          </Box>
+          <Box
+            w={'100%'}
+            gap={'xs'}
+            style={{
+              display: 'grid',
+              'grid-template-columns': 'repeat(3, minmax(0, 1fr))',
+            }}
+          >
+            <For each={sortedTerrainExportLabelKeys}>
+              {(key) => (
+                <Box gap={'xs'} minW={'0'}>
+                  <Box as={'label'} text={'caption'} c={'text.caption'}>
+                    {key}
+                  </Box>
+                  <Input
+                    w={'100%'}
+                    value={terrainLabels()[key]}
+                    onInput={(event) =>
+                      updateTerrainLabel(key, event.currentTarget.value)
+                    }
+                  />
+                </Box>
+              )}
+            </For>
+          </Box>
+        </Box>
+      </Show>
 
       <Box w={'100%'} gap={'xs'}>
         <Box
@@ -260,6 +357,7 @@ export const PaletteTileDialog = (props: PaletteTileDialogProps) => {
                   updateShape(index(), value as CvShape | null)
                 }
                 data={shapeOptions}
+                strategy={'fixed'}
                 contentProps={selectContentProps}
                 renderValue={(value: CvShape) => (
                   <Box direction={'row'} align={'center'} gap={'xs'}>
