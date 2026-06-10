@@ -271,6 +271,23 @@ export const PaletteTileDialog = (props: PaletteTileDialogProps) => {
       </Box>
       <Box w={'100%'} gap={'xs'}>
         <Box as={'label'} text={'caption'} c={'text.caption'}>
+          {'표시'}
+        </Box>
+        <Box direction={'row'} gap={'md'} wrap={'wrap'}>
+          <CheckBox
+            name={'배경 표시'}
+            checked={draft().showBackground}
+            onChecked={(checked) => updateDraft({ showBackground: checked })}
+          />
+          <CheckBox
+            name={'아이콘 표시'}
+            checked={draft().showIcon}
+            onChecked={(checked) => updateDraft({ showIcon: checked })}
+          />
+        </Box>
+      </Box>
+      <Box w={'100%'} gap={'xs'}>
+        <Box as={'label'} text={'caption'} c={'text.caption'}>
           {'지형'}
         </Box>
         <CheckBox

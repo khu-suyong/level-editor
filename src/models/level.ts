@@ -65,6 +65,8 @@ export const TileMappingSchema = z.object({
   backgroundColor: hexColorSchema,
   icon: TileIconSchema,
   iconColor: hexColorSchema,
+  showBackground: z.boolean().default(true),
+  showIcon: z.boolean().default(true),
   cvShapes: CvShapeSchema.array(),
   isTerrain: z.boolean().default(false),
   terrainExportTileLabels: TerrainExportTileLabelsSchema.optional(),

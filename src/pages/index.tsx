@@ -86,6 +86,8 @@ const defaultLevel: LevelData = {
       backgroundColor: '#2563eb',
       icon: 'star',
       iconColor: '#f8fafc',
+      showBackground: true,
+      showIcon: true,
       cvShapes: [],
       isTerrain: false,
       terrainExportTileLabels: {

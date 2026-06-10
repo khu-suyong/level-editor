@@ -43,6 +43,8 @@ const cloneTile = (tile: TilePlacement): TilePlacement => ({
 
 const cloneTileMapping = (tileMapping: TileMapping): TileMapping => ({
   ...tileMapping,
+  showBackground: tileMapping.showBackground ?? true,
+  showIcon: tileMapping.showIcon ?? true,
   cvShapes: [...tileMapping.cvShapes],
   isTerrain: Boolean(tileMapping.isTerrain),
   ...(tileMapping.terrainExportTileLabels

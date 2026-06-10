@@ -112,6 +112,8 @@ const cloneLayer = (layer: LevelLayer): LevelLayer => ({
 
 export const clonePaletteTile = (tile: TileMapping): TileMapping => ({
   ...tile,
+  showBackground: tile.showBackground ?? true,
+  showIcon: tile.showIcon ?? true,
   cvShapes: [...tile.cvShapes],
   isTerrain: Boolean(tile.isTerrain),
   ...(tile.terrainExportTileLabels
@@ -195,6 +197,8 @@ export const createRandomPaletteTile = (
     backgroundColor: randomItem(backgroundColors),
     icon: randomItem(TILE_ICON_PRESETS),
     iconColor: randomItem(iconColors),
+    showBackground: true,
+    showIcon: true,
     cvShapes: [...cvShapes],
     isTerrain: false,
     terrainExportTileLabels: createEmptyTerrainExportTileLabels(),
