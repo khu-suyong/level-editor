@@ -15,6 +15,12 @@ export type UnrealExportTile = {
   type: string;
 };
 
+export type UnrealExportObject = {
+  x: number;
+  y: number;
+  type: string;
+};
+
 export type UnrealExportData = {
   map: {
     width: number;
@@ -22,7 +28,7 @@ export type UnrealExportData = {
     tileSize: number;
   };
   tiles: UnrealExportTile[];
-  enemies: [];
+  objects: UnrealExportObject[];
 };
 
 const getTileMappingMap = (level: LevelData) =>
@@ -39,9 +45,8 @@ const getTerrainExportType = (
   return label || tileMapping.name;
 };
 
-const getExportTileType = (
+const getTileMapping = (
   tileMappings: Map<number, TileMapping>,
-  tilesByCoordinate: ReturnType<typeof createTerrainTileLookup>,
   tile: TilePlacement,
 ) => {
   const tileMapping = tileMappings.get(tile.tileId);
@@ -50,16 +55,15 @@ const getExportTileType = (
     throw new Error(`타일 ${tile.tileId}의 팔레트 매핑을 찾을 수 없습니다.`);
   }
 
-  if (!tileMapping.isTerrain) {
-    return tileMapping.name;
-  }
-
-  return getTerrainExportType(tileMapping, tilesByCoordinate, tile);
+  return tileMapping;
 };
 
 export const buildUnrealExportData = (level: LevelData): UnrealExportData => {
   const tileMappings = getTileMappingMap(level);
   const tiles: UnrealExportTile[] = [];
+  const objects: UnrealExportObject[] = [];
+  let width = 0;
+  let height = 0;
 
   for (const layer of [...level.layers].sort(
     (first, second) => first.order - second.order,
@@ -73,24 +77,34 @@ export const buildUnrealExportData = (level: LevelData): UnrealExportData => {
         );
       }
 
-      tiles.push({
+      width = Math.max(width, tile.x + 1);
+      height = Math.max(height, tile.y + 1);
+
+      const tileMapping = getTileMapping(tileMappings, tile);
+      const exportItem = {
         x: tile.x,
         y: tile.y,
-        type: getExportTileType(tileMappings, tilesByCoordinate, tile),
-      });
+        type: tileMapping.isTerrain
+          ? getTerrainExportType(tileMapping, tilesByCoordinate, tile)
+          : tileMapping.name,
+      };
+
+      if (tileMapping.isTerrain) {
+        tiles.push(exportItem);
+      } else {
+        objects.push(exportItem);
+      }
     }
   }
 
   return {
     map: {
-      width:
-        tiles.length > 0 ? Math.max(...tiles.map((tile) => tile.x)) + 1 : 0,
-      height:
-        tiles.length > 0 ? Math.max(...tiles.map((tile) => tile.y)) + 1 : 0,
+      width,
+      height,
       tileSize: level.gridSize,
     },
     tiles,
-    enemies: [],
+    objects,
   };
 };
 
