@@ -165,9 +165,6 @@ export default function HomePage() {
   const [recognitionPayloads, setRecognitionPayloads] = createSignal<
     RecognitionPayload[]
   >([]);
-  const [selectedRecognitionIndex, setSelectedRecognitionIndex] = createSignal<
-    number | null
-  >(null);
   const [recognitionResultsOpen, setRecognitionResultsOpen] =
     createSignal(false);
   const [recognitionApiError, setRecognitionApiError] = createSignal<
@@ -198,7 +195,6 @@ export default function HomePage() {
     },
     onSuccess: (payloads) => {
       setRecognitionPayloads(payloads);
-      setSelectedRecognitionIndex(payloads.length > 0 ? 0 : null);
       setRecognitionResultsOpen(true);
     },
     onError: (error) => {
@@ -748,15 +744,14 @@ export default function HomePage() {
       />
       <RecognitionResultDialog
         open={recognitionResultsOpen()}
+        level={level()}
         payloads={recognitionPayloads()}
-        selectedIndex={selectedRecognitionIndex()}
         onClose={
           structureTerrainConfirmation()
             ? handleKeepStructureTileAsObject
             : handleCloseRecognitionResults
         }
         onInsertPayload={handleInsertRecognitionPayload}
-        onSelectIndex={setSelectedRecognitionIndex}
       />
       <Dialog
         open={Boolean(structureTerrainConfirmation())}

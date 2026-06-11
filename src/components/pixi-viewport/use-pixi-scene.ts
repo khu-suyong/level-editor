@@ -22,6 +22,7 @@ import { type EditorTool, setCanvasReady } from '@/stores/editor';
 import { createTerrainTileLookup, resolveTerrainEdges } from '@/stores/terrain';
 
 import * as styles from './pixi-viewport.css';
+import { getPlacedTileRenderStyle } from './tile-render-style';
 import type {
   ContextMenuState,
   LayerResizeHandle,
@@ -824,7 +825,9 @@ export const usePixiScene = ({
     for (const layer of [...snapshot().layers].sort(
       (first, second) => first.order - second.order,
     )) {
-      const isActiveLayer = layer.id === activeLayerId();
+      const tileRenderStyle = getPlacedTileRenderStyle(
+        layer.id === activeLayerId(),
+      );
       const terrainTilesByCoordinate = createTerrainTileLookup(layer);
 
       for (const tile of layer.tiles) {
@@ -832,18 +835,15 @@ export const usePixiScene = ({
         const tileStyle = getTileStyle(snapshot(), tile.tileId);
         const tileInset = 1;
         const tileSize = currentGridSize - tileInset * 2;
-        const borderColor = isActiveLayer ? 0x93c5fd : 0x475569;
-        const borderAlpha = isActiveLayer ? 0.55 : 0.32;
         const fillInset = tileInset + lineWidth;
-        const tileAlpha = isActiveLayer ? 1 : 0.36;
 
         const tileLayerObjects: Array<Sprite | Graphics> = [
           drawTileBorder(
             rect,
             tileInset,
             tileSize,
-            borderColor,
-            borderAlpha,
+            tileRenderStyle.borderColor,
+            tileRenderStyle.borderAlpha,
             lineWidth,
           ),
         ];
@@ -859,7 +859,7 @@ export const usePixiScene = ({
                 tileStyle.backgroundColor,
                 DEFAULT_TILE_BACKGROUND_COLOR,
               ),
-              tileAlpha,
+              tileRenderStyle.fillAlpha,
             ),
           );
         }
@@ -868,7 +868,7 @@ export const usePixiScene = ({
           rect,
           tileStyle,
           lineWidth,
-          isActiveLayer ? 1 : 0.46,
+          tileRenderStyle.iconAlpha,
           currentGridSize,
         );
 

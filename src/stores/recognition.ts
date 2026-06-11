@@ -19,6 +19,7 @@ import {
   isCvShape,
   normalizeCvShape,
 } from './palette';
+import { createEmptyTerrainExportTileLabels } from './terrain';
 
 type CellRange = {
   minX: number;
@@ -50,6 +51,15 @@ export type RecognitionLayerBuildResult = {
   importId: string;
   layer: LevelLayer;
   tileMappings: TileMapping[];
+};
+
+export type RecognitionTilePreview = {
+  layer: LevelLayer;
+  tileTable: TileMapping[];
+  imageSource: string | null;
+  bounds: LayerBounds;
+  tileCount: number;
+  assumedStructureTerrainTile: TileMapping | null;
 };
 
 const DEFAULT_VIEWPORT_WIDTH = 1024;
@@ -201,6 +211,9 @@ const cloneRecognitionPayload = (
 
 const getRecognitionImageDataUrl = (data: RecognitionBinaryData) =>
   `data:${data.mimeType};base64,${data.value}`;
+
+const getRecognitionImageSource = (image: RecognitionImage) =>
+  image.data ? getRecognitionImageDataUrl(image.data) : (image.src ?? null);
 
 const hasRecognitionImageSource = (image: RecognitionImage) =>
   Boolean(image.data || image.src);
@@ -632,6 +645,62 @@ export const buildRecognitionLayer = (
   options: RecognitionLayerBuildOptions = {},
 ): Promise<RecognitionLayerBuildResult> => {
   return buildRecognitionLayerAsync(level, payload, options);
+};
+
+const createRecognitionPreviewLevel = (
+  level: LevelData,
+  payload: RecognitionPayload,
+) => {
+  const structureTile = getNonTerrainStructureTileMapping(level, payload);
+
+  if (!structureTile) {
+    return {
+      level,
+      assumedStructureTerrainTile: null,
+    };
+  }
+
+  const assumedStructureTerrainTile = {
+    ...structureTile,
+    isTerrain: true,
+    terrainExportTileLabels:
+      structureTile.terrainExportTileLabels ??
+      createEmptyTerrainExportTileLabels(),
+  };
+
+  return {
+    level: {
+      ...level,
+      tileTable: level.tileTable.map((tile) =>
+        tile.tileId === structureTile.tileId
+          ? assumedStructureTerrainTile
+          : tile,
+      ),
+    },
+    assumedStructureTerrainTile,
+  };
+};
+
+export const buildRecognitionTilePreview = async (
+  level: LevelData,
+  payload: RecognitionPayload,
+  options: RecognitionLayerBuildOptions = {},
+): Promise<RecognitionTilePreview> => {
+  const preview = createRecognitionPreviewLevel(level, payload);
+  const result = await buildRecognitionLayer(preview.level, payload, options);
+  const sourcePayload =
+    result.layer.source?.type === 'recognition'
+      ? result.layer.source.payload
+      : payload;
+
+  return {
+    layer: result.layer,
+    tileTable: [...preview.level.tileTable, ...result.tileMappings],
+    imageSource: getRecognitionImageSource(sourcePayload.image),
+    bounds: result.layer.bounds ?? getLayerBounds(sourcePayload, options),
+    tileCount: result.layer.tiles.length,
+    assumedStructureTerrainTile: preview.assumedStructureTerrainTile,
+  };
 };
 
 const buildRecognitionLayerAsync = async (
