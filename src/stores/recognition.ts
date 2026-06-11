@@ -1,4 +1,5 @@
 import { clampGridSize, DEFAULT_GRID_SIZE } from '@/helpers/grid-size';
+import { tileLabelsEqual } from '@/helpers/tile-label';
 import type {
   Cell,
   CvShape,
@@ -537,7 +538,7 @@ const buildObjectBoundsTiles = (
         tileMap.set(coordinateKey({ x, y }), {
           x,
           y,
-          tileId: tile.tileId,
+          tileLabel: tile.name,
           source: {
             type: 'recognition',
             importId,
@@ -571,7 +572,7 @@ const buildObjectCenterTiles = (
 
     tileMap.set(coordinateKey(cell), {
       ...cell,
-      tileId: tile.tileId,
+      tileLabel: tile.name,
       source: {
         type: 'recognition',
         importId,
@@ -617,7 +618,7 @@ const buildImagePixelTiles = (
 
       tileMap.set(coordinateKey(cell), {
         ...cell,
-        tileId: tile.tileId,
+        tileLabel: tile.name,
         source: {
           type: 'recognition',
           importId,
@@ -672,7 +673,7 @@ const createRecognitionPreviewLevel = (
     level: {
       ...level,
       tileTable: level.tileTable.map((tile) =>
-        tile.tileId === structureTile.tileId
+        tileLabelsEqual(tile.name, structureTile.name)
           ? assumedStructureTerrainTile
           : tile,
       ),

@@ -8,6 +8,7 @@ import type { LayerMoveDirection } from '@/stores/layers';
 import { sortLayersForDisplay } from '@/stores/layers';
 import { LayerDeleteDialog } from './layer-delete-dialog';
 import { LayerItem } from './layer-item';
+import { LayerRenameDialog } from './layer-rename-dialog';
 import { createLayerTreeFlipKey } from './layer-tab.utils';
 
 type LayerTabProps = {
@@ -17,12 +18,14 @@ type LayerTabProps = {
   onAddLayer: () => void;
   onDeleteLayer: (layerId: string) => void;
   onMoveLayer: (layerId: string, direction: LayerMoveDirection) => void;
+  onRenameLayer: (layerId: string, name: string) => string | null;
   onSelectActiveLayer: (layerId: string) => void;
   onSelectLayerRect: (layerId: string, selected: boolean) => void;
 };
 
 export const LayerTab = (props: LayerTabProps) => {
   const [deleteTargetId, setDeleteTargetId] = createSignal<string | null>(null);
+  const [renameTargetId, setRenameTargetId] = createSignal<string | null>(null);
   const [expandedLayerIds, setExpandedLayerIds] = createSignal<Set<string>>(
     new Set(),
   );
@@ -30,6 +33,9 @@ export const LayerTab = (props: LayerTabProps) => {
   const layerTreeFlipKey = createMemo(() => createLayerTreeFlipKey(layers()));
   const deleteTarget = createMemo(() =>
     props.level.layers.find((layer) => layer.id === deleteTargetId()),
+  );
+  const renameTarget = createMemo(() =>
+    props.level.layers.find((layer) => layer.id === renameTargetId()),
   );
   const isLayerExpanded = (layerId: string) => expandedLayerIds().has(layerId);
   const toggleLayerExpanded = (layerId: string) => {
@@ -48,6 +54,9 @@ export const LayerTab = (props: LayerTabProps) => {
   const handleCloseDelete = () => {
     setDeleteTargetId(null);
   };
+  const handleCloseRename = () => {
+    setRenameTargetId(null);
+  };
   const handleConfirmDelete = () => {
     const targetId = deleteTargetId();
 
@@ -64,6 +73,15 @@ export const LayerTab = (props: LayerTabProps) => {
     });
     handleCloseDelete();
     props.onDeleteLayer(targetId);
+  };
+  const handleSaveRename = (layerId: string, name: string) => {
+    const error = props.onRenameLayer(layerId, name);
+
+    if (!error) {
+      handleCloseRename();
+    }
+
+    return error;
   };
 
   return (
@@ -88,7 +106,6 @@ export const LayerTab = (props: LayerTabProps) => {
           {(layer, index) => (
             <LayerItem
               layer={layer}
-              tileTable={props.level.tileTable}
               canMoveDown={index() < layers().length - 1}
               canMoveUp={index() > 0}
               disabledDelete={layers().length <= 1}
@@ -97,6 +114,7 @@ export const LayerTab = (props: LayerTabProps) => {
               selectedLayerId={props.selectedLayerId}
               onDeleteLayer={setDeleteTargetId}
               onMoveLayer={props.onMoveLayer}
+              onRenameLayer={setRenameTargetId}
               onSelectActiveLayer={props.onSelectActiveLayer}
               onSelectLayerRect={props.onSelectLayerRect}
               onToggleExpanded={toggleLayerExpanded}
@@ -108,6 +126,11 @@ export const LayerTab = (props: LayerTabProps) => {
         layer={deleteTarget()}
         onClose={handleCloseDelete}
         onConfirm={handleConfirmDelete}
+      />
+      <LayerRenameDialog
+        layer={renameTarget()}
+        onClose={handleCloseRename}
+        onSave={handleSaveRename}
       />
     </Box>
   );

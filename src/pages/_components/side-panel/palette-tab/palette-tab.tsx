@@ -3,6 +3,7 @@ import { Plus } from 'lucide-solid';
 import { createMemo, createSignal, For } from 'solid-js';
 
 import { Icon } from '@/components/ui/icon';
+import { tileLabelsEqual } from '@/helpers/tile-label';
 import type { LevelData, TileMapping } from '@/models/level';
 import {
   addPaletteTileToLevel,
@@ -22,20 +23,24 @@ import { PaletteTileItem } from './palette-tile-item';
 
 type PaletteTabProps = {
   level: LevelData;
-  selectedBrushTileId: number;
+  selectedBrushTileLabel: string;
   onApplyLevel: (level: LevelData) => void;
-  onSelectBrushTile: (tileId: number) => void;
+  onSelectBrushTile: (tileLabel: string) => void;
 };
 
 export const PaletteTab = (props: PaletteTabProps) => {
   const [addOpen, setAddOpen] = createSignal(false);
   const [addDraft, setAddDraft] = createSignal<TileMapping | null>(null);
   const [editOpen, setEditOpen] = createSignal(false);
-  const [editTargetId, setEditTargetId] = createSignal<number | null>(null);
+  const [editTargetLabel, setEditTargetLabel] = createSignal<string | null>(
+    null,
+  );
   const [editTargetSnapshot, setEditTargetSnapshot] =
     createSignal<TileMapping | null>(null);
   const [deleteOpen, setDeleteOpen] = createSignal(false);
-  const [deleteTargetId, setDeleteTargetId] = createSignal<number | null>(null);
+  const [deleteTargetLabel, setDeleteTargetLabel] = createSignal<string | null>(
+    null,
+  );
   const [deleteTargetSnapshot, setDeleteTargetSnapshot] =
     createSignal<TileMapping | null>(null);
   const [replacementValue, setReplacementValue] = createSignal<string | null>(
@@ -48,17 +53,25 @@ export const PaletteTab = (props: PaletteTabProps) => {
   );
   const addTile = () => addDraft() ?? fallbackTile();
   const editTarget = createMemo(() =>
-    props.level.tileTable.find((tile) => tile.tileId === editTargetId()),
+    props.level.tileTable.find((tile) =>
+      editTargetLabel()
+        ? tileLabelsEqual(tile.name, editTargetLabel() ?? '')
+        : false,
+    ),
   );
   const editTile = () => editTarget() ?? editTargetSnapshot() ?? fallbackTile();
-  const editOriginalTileId = () => editTargetId() ?? editTile().tileId;
+  const editOriginalTileLabel = () => editTargetLabel() ?? editTile().name;
   const deleteTarget = createMemo(() =>
-    props.level.tileTable.find((tile) => tile.tileId === deleteTargetId()),
+    props.level.tileTable.find((tile) =>
+      deleteTargetLabel()
+        ? tileLabelsEqual(tile.name, deleteTargetLabel() ?? '')
+        : false,
+    ),
   );
   const deleteTile = () =>
     deleteTarget() ?? deleteTargetSnapshot() ?? fallbackTile();
   const replacementOptions = createMemo<ReplacementOption[]>(() =>
-    createReplacementOptions(props.level, deleteTargetId()),
+    createReplacementOptions(props.level, deleteTargetLabel()),
   );
   const isOnlyTile = () => props.level.tileTable.length <= 1;
   const handleOpenAdd = () => {
@@ -70,13 +83,15 @@ export const PaletteTab = (props: PaletteTabProps) => {
   };
   const handleConfirmAdd = (tile: TileMapping) => {
     props.onApplyLevel(addPaletteTileToLevel(props.level, tile));
-    props.onSelectBrushTile(tile.tileId);
+    props.onSelectBrushTile(tile.name);
     handleCloseAdd();
   };
-  const handleOpenEdit = (tileId: number) => {
-    const target = props.level.tileTable.find((tile) => tile.tileId === tileId);
+  const handleOpenEdit = (tileLabel: string) => {
+    const target = props.level.tileTable.find((tile) =>
+      tileLabelsEqual(tile.name, tileLabel),
+    );
 
-    setEditTargetId(tileId);
+    setEditTargetLabel(tileLabel);
 
     if (target) {
       setEditTargetSnapshot(clonePaletteTile(target));
@@ -87,21 +102,23 @@ export const PaletteTab = (props: PaletteTabProps) => {
   const handleCloseEdit = () => {
     setEditOpen(false);
   };
-  const handleConfirmEdit = (originalTileId: number, tile: TileMapping) => {
+  const handleConfirmEdit = (originalTileLabel: string, tile: TileMapping) => {
     props.onApplyLevel(
-      updatePaletteTileInLevel(props.level, originalTileId, tile),
+      updatePaletteTileInLevel(props.level, originalTileLabel, tile),
     );
 
-    if (props.selectedBrushTileId === originalTileId) {
-      props.onSelectBrushTile(tile.tileId);
+    if (tileLabelsEqual(props.selectedBrushTileLabel, originalTileLabel)) {
+      props.onSelectBrushTile(tile.name);
     }
 
     handleCloseEdit();
   };
-  const handleOpenDelete = (tileId: number) => {
-    const target = props.level.tileTable.find((tile) => tile.tileId === tileId);
+  const handleOpenDelete = (tileLabel: string) => {
+    const target = props.level.tileTable.find((tile) =>
+      tileLabelsEqual(tile.name, tileLabel),
+    );
 
-    setDeleteTargetId(tileId);
+    setDeleteTargetLabel(tileLabel);
     setReplacementValue(null);
 
     if (target) {
@@ -114,26 +131,24 @@ export const PaletteTab = (props: PaletteTabProps) => {
     setDeleteOpen(false);
   };
   const handleConfirmDelete = () => {
-    const targetId = deleteTargetId();
+    const targetLabel = deleteTargetLabel();
 
-    if (targetId === null) {
+    if (targetLabel === null) {
       return;
     }
 
-    const replacementTileId = replacementValue()
-      ? Number(replacementValue())
-      : null;
+    const replacementTileLabel = replacementValue();
     const nextLevel = deletePaletteTileFromLevel(
       props.level,
-      targetId,
-      replacementTileId,
+      targetLabel,
+      replacementTileLabel,
     );
 
     props.onApplyLevel(nextLevel);
 
-    if (props.selectedBrushTileId === targetId) {
+    if (tileLabelsEqual(props.selectedBrushTileLabel, targetLabel)) {
       props.onSelectBrushTile(
-        replacementTileId ?? nextLevel.tileTable[0]?.tileId ?? 0,
+        replacementTileLabel ?? nextLevel.tileTable[0]?.name ?? 'Tile 0',
       );
     }
 
@@ -171,7 +186,7 @@ export const PaletteTab = (props: PaletteTabProps) => {
         confirmLabel={'타일 추가'}
         level={props.level}
         tile={addTile()}
-        originalTileId={null}
+        originalTileLabel={null}
         onClose={handleCloseAdd}
         onSave={handleConfirmAdd}
       />
@@ -181,9 +196,9 @@ export const PaletteTab = (props: PaletteTabProps) => {
         confirmLabel={'저장'}
         level={props.level}
         tile={editTile()}
-        originalTileId={editOriginalTileId()}
+        originalTileLabel={editOriginalTileLabel()}
         onClose={handleCloseEdit}
-        onSave={(tile) => handleConfirmEdit(editOriginalTileId(), tile)}
+        onSave={(tile) => handleConfirmEdit(editOriginalTileLabel(), tile)}
       />
       <PaletteDeleteDialog
         open={deleteOpen() && Boolean(deleteTarget())}

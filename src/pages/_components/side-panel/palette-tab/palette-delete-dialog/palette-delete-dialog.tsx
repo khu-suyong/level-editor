@@ -35,7 +35,7 @@ export const PaletteDeleteDialog = (props: PaletteDeleteDialogProps) => {
       title={`${getTileDisplayName(props.tile)} 삭제 확인`}
       description={`${getUsedTileCount(
         props.level,
-        props.tile.tileId,
+        props.tile.name,
       )}개의 타일이 사용되고 있습니다.`}
       onClose={props.onClose}
       footer={

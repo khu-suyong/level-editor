@@ -9,6 +9,7 @@ import {
   getShortcutDisplay,
   shortcutById,
 } from '@/helpers/editor-shortcuts';
+import { tileLabelsEqual } from '@/helpers/tile-label';
 import type { TileMapping } from '@/models/level';
 import { TilePreview } from '@/pages/_components/tile-preview';
 import type { EditorTool } from '@/stores/editor';
@@ -21,13 +22,13 @@ type ToolPanelProps = {
   canRedo: boolean;
   canUndo: boolean;
   recognitionImportPending: boolean;
-  selectedBrushTileId: number;
+  selectedBrushTileLabel: string;
   onRedo: () => void;
   selectedTool: EditorTool;
   tileTable: TileMapping[];
   onOpenRecognitionImage: () => void;
   onUndo: () => void;
-  onSelectBrushTile: (tileId: number) => void;
+  onSelectBrushTile: (tileLabel: string) => void;
   onSelectTool: (selectedTool: EditorTool) => void;
 };
 
@@ -188,10 +189,14 @@ export function ToolPanel(props: ToolPanelProps) {
                       p={'none'}
                       type={'icon'}
                       aria-label={`Use ${getTileDisplayName(tile)} tile`}
-                      onClick={() => props.onSelectBrushTile(tile.tileId)}
+                      onClick={() => props.onSelectBrushTile(tile.name)}
                       style={{
-                        opacity:
-                          props.selectedBrushTileId !== tile.tileId ? 0.25 : 1,
+                        opacity: tileLabelsEqual(
+                          props.selectedBrushTileLabel,
+                          tile.name,
+                        )
+                          ? 1
+                          : 0.25,
                       }}
                     >
                       <TilePreview tile={tile} size={16} />

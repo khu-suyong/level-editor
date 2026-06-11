@@ -11,8 +11,8 @@ type PaletteTileItemProps = {
   level: LevelData;
   disabledDelete: boolean;
   tile: TileMapping;
-  onEdit: (tileId: number) => void;
-  onDelete: (tileId: number) => void;
+  onEdit: (tileLabel: string) => void;
+  onDelete: (tileLabel: string) => void;
 };
 
 export const PaletteTileItem = (props: PaletteTileItemProps) => (
@@ -28,7 +28,7 @@ export const PaletteTileItem = (props: PaletteTileItemProps) => (
           type={'icon'}
           size={'sm'}
           aria-label={`Edit ${getTileDisplayName(props.tile)}`}
-          onClick={() => props.onEdit(props.tile.tileId)}
+          onClick={() => props.onEdit(props.tile.name)}
         >
           <Icon name={Pencil} />
         </Button>
@@ -38,7 +38,7 @@ export const PaletteTileItem = (props: PaletteTileItemProps) => (
           size={'sm'}
           aria-label={`Delete ${getTileDisplayName(props.tile)}`}
           disabled={props.disabledDelete}
-          onClick={() => props.onDelete(props.tile.tileId)}
+          onClick={() => props.onDelete(props.tile.name)}
         >
           <Icon name={Trash2} />
         </Button>

@@ -22,7 +22,7 @@ const sidePanelTabs = ['layer', 'palette'] as const satisfies SidePanelTab[];
 type SidePanelProps = {
   activeLayerId: string;
   levelLoadPending: boolean;
-  selectedBrushTileId: number;
+  selectedBrushTileLabel: string;
   selectedLayerId: string | null;
   level: LevelData;
   onApplyLevel: (level: LevelData) => void;
@@ -31,10 +31,11 @@ type SidePanelProps = {
   onExportUnrealLevel: () => void;
   onMoveLayer: (layerId: string, direction: LayerMoveDirection) => void;
   onOpenLevelFile: () => void;
+  onRenameLayer: (layerId: string, name: string) => string | null;
   onRenameLevel: (name: string) => void;
   onSaveLevel: () => void;
   onSelectActiveLayer: (layerId: string) => void;
-  onSelectBrushTile: (tileId: number) => void;
+  onSelectBrushTile: (tileLabel: string) => void;
   onSelectLayerRect: (layerId: string, selected: boolean) => void;
 };
 
@@ -299,6 +300,7 @@ export const SidePanel = (props: SidePanelProps) => {
               onAddLayer={props.onAddLayer}
               onDeleteLayer={props.onDeleteLayer}
               onMoveLayer={props.onMoveLayer}
+              onRenameLayer={props.onRenameLayer}
               onSelectActiveLayer={props.onSelectActiveLayer}
               onSelectLayerRect={props.onSelectLayerRect}
             />
@@ -314,7 +316,7 @@ export const SidePanel = (props: SidePanelProps) => {
           >
             <PaletteTab
               level={props.level}
-              selectedBrushTileId={props.selectedBrushTileId}
+              selectedBrushTileLabel={props.selectedBrushTileLabel}
               onApplyLevel={props.onApplyLevel}
               onSelectBrushTile={props.onSelectBrushTile}
             />

@@ -1,6 +1,6 @@
 import { Box } from '@suis-ui/kit';
 import { createEffect, createSignal, onCleanup, Show } from 'solid-js';
-
+import { getTileLabelKey } from '@/helpers/tile-label';
 import type { RecognitionPayload, TileIcon, TileMapping } from '@/models/level';
 import type { RecognitionTilePreview as RecognitionTilePreviewData } from '@/stores/recognition';
 import {
@@ -335,10 +335,12 @@ const drawTiles = (
 ) => {
   const cellWidth = width / preview.bounds.width;
   const cellHeight = height / preview.bounds.height;
-  const tileMap = new Map(preview.tileTable.map((tile) => [tile.tileId, tile]));
+  const tileMap = new Map(
+    preview.tileTable.map((tile) => [getTileLabelKey(tile.name), tile]),
+  );
 
   for (const placement of preview.layer.tiles) {
-    const tile = tileMap.get(placement.tileId);
+    const tile = tileMap.get(getTileLabelKey(placement.tileLabel));
 
     if (!tile) {
       continue;

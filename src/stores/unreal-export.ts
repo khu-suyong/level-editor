@@ -1,3 +1,4 @@
+import { getTileLabelKey } from '@/helpers/tile-label';
 import type { LevelData, TileMapping, TilePlacement } from '@/models/level';
 
 import { sanitizeFileName } from './level-file';
@@ -32,7 +33,7 @@ export type UnrealExportData = {
 };
 
 const getTileMappingMap = (level: LevelData) =>
-  new Map(level.tileTable.map((tile) => [tile.tileId, tile]));
+  new Map(level.tileTable.map((tile) => [getTileLabelKey(tile.name), tile]));
 
 const getTerrainExportType = (
   tileMapping: TileMapping,
@@ -46,13 +47,13 @@ const getTerrainExportType = (
 };
 
 const getTileMapping = (
-  tileMappings: Map<number, TileMapping>,
+  tileMappings: Map<string, TileMapping>,
   tile: TilePlacement,
 ) => {
-  const tileMapping = tileMappings.get(tile.tileId);
+  const tileMapping = tileMappings.get(getTileLabelKey(tile.tileLabel));
 
   if (!tileMapping) {
-    throw new Error(`타일 ${tile.tileId}의 팔레트 매핑을 찾을 수 없습니다.`);
+    throw new Error(`타일 ${tile.tileLabel}의 팔레트 매핑을 찾을 수 없습니다.`);
   }
 
   return tileMapping;

@@ -1,3 +1,4 @@
+import { tileLabelsEqual } from '@/helpers/tile-label';
 import type {
   Cell,
   LevelLayer,
@@ -97,7 +98,7 @@ const hasSameTerrainNeighbor = (
     }),
   );
 
-  return neighbor?.tileId === tile.tileId;
+  return !!neighbor && tileLabelsEqual(neighbor.tileLabel, tile.tileLabel);
 };
 
 export const resolveTerrainEdges = (

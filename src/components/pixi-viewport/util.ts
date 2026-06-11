@@ -1,3 +1,4 @@
+import { tileLabelsEqual } from '@/helpers/tile-label';
 import type {
   Cell,
   LayerBounds,
@@ -132,7 +133,9 @@ export const resolveFloodFillCells = (layer: LevelLayer, startCell: Cell) => {
 
       visited.add(cellKey);
 
-      if (tilesByCoordinate.get(cellKey)?.tileId !== startTile.tileId) {
+      const tile = tilesByCoordinate.get(cellKey);
+
+      if (!tile || !tileLabelsEqual(tile.tileLabel, startTile.tileLabel)) {
         continue;
       }
 
@@ -202,10 +205,14 @@ export const resolveFloodFillCells = (layer: LevelLayer, startCell: Cell) => {
   return fillCells;
 };
 
-export const tileColor = (tileId: number) => {
+export const tileColor = (tileLabel: string) => {
   const colors = [0x2563eb, 0x059669, 0xdc2626, 0xd97706, 0x7c3aed, 0x0891b2];
+  const colorIndex = [...tileLabel].reduce(
+    (sum, character) => sum + character.charCodeAt(0),
+    0,
+  );
 
-  return colors[tileId % colors.length] ?? colors[0];
+  return colors[colorIndex % colors.length] ?? colors[0];
 };
 
 export const getCellRect = (cell: Cell, gridSize: number) => ({

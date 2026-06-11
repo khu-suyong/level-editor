@@ -7,7 +7,7 @@ export const createLayerTreeFlipKey = (layers: LevelLayer[]) =>
         layer.id,
         layer.order,
         layer.tiles
-          .map((tile) => `${tile.x},${tile.y},${tile.tileId}`)
+          .map((tile) => `${tile.x},${tile.y},${tile.tileLabel}`)
           .join('|'),
       ].join(':'),
     )

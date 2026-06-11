@@ -1,5 +1,5 @@
 import type { Accessor } from 'solid-js';
-
+import { tileLabelsEqual } from '@/helpers/tile-label';
 import type {
   Cell,
   LayerBounds,
@@ -20,7 +20,7 @@ import {
 } from '@/stores/history';
 import { rebuildRecognitionLayerTiles } from '@/stores/recognition';
 
-import { DEFAULT_TILE_ID } from './constants';
+import { DEFAULT_TILE_LABEL } from './constants';
 import {
   cellsEqual,
   coordinateKey,
@@ -108,7 +108,7 @@ const resampleLayerTiles = (
 
 type UsePixiEditorActionsParams = {
   activeLayerId: Accessor<string>;
-  brushTileId: Accessor<number>;
+  brushTileLabel: Accessor<string>;
   clipboard: Accessor<TileClipboard | null>;
   selection: Accessor<TilePlacement[]>;
   snapshot: Accessor<LevelData>;
@@ -116,7 +116,7 @@ type UsePixiEditorActionsParams = {
 
 export const usePixiEditorActions = ({
   activeLayerId,
-  brushTileId,
+  brushTileLabel,
   clipboard,
   selection,
   snapshot,
@@ -158,12 +158,14 @@ export const usePixiEditorActions = ({
     return bounds ? tileBoundsToLayerBounds(bounds) : null;
   };
 
-  const getBrushTileId = () => {
-    const selectedTileId = brushTileId();
+  const getBrushTileLabel = () => {
+    const selectedTileLabel = brushTileLabel();
 
-    return snapshot().tileTable.some((tile) => tile.tileId === selectedTileId)
-      ? selectedTileId
-      : (snapshot().tileTable[0]?.tileId ?? DEFAULT_TILE_ID);
+    return snapshot().tileTable.some((tile) =>
+      tileLabelsEqual(tile.name, selectedTileLabel),
+    )
+      ? selectedTileLabel
+      : (snapshot().tileTable[0]?.name ?? DEFAULT_TILE_LABEL);
   };
 
   const dispatchAddOrReplace = (
@@ -180,7 +182,10 @@ export const usePixiEditorActions = ({
     const changedTiles = normalizedTiles.filter((tile) => {
       const existingTile = activeTilesByCoordinate.get(coordinateKey(tile));
 
-      return !existingTile || existingTile.tileId !== tile.tileId;
+      return (
+        !existingTile ||
+        !tileLabelsEqual(existingTile.tileLabel, tile.tileLabel)
+      );
     });
 
     if (changedTiles.length === 0) {
@@ -228,7 +233,7 @@ export const usePixiEditorActions = ({
   const paintCells = (cells: Cell[]) => {
     const tiles = uniqueCells(cells).map((cell) => ({
       ...cell,
-      tileId: getBrushTileId(),
+      tileLabel: getBrushTileLabel(),
     }));
 
     dispatchAddOrReplace(tiles);
@@ -247,20 +252,20 @@ export const usePixiEditorActions = ({
       return;
     }
 
-    const tileId = getBrushTileId();
+    const tileLabel = getBrushTileLabel();
     const activeTilesByCoordinate = new Map(
       getActiveTiles().map((tile) => [coordinateKey(tile), tile]),
     );
     const tiles = fillCells.map((cell) => ({
       ...cell,
-      tileId,
+      tileLabel,
     }));
     const nextSelection = fillCells.map((cell) => {
       const existingTile = activeTilesByCoordinate.get(coordinateKey(cell));
 
-      return existingTile?.tileId === tileId
+      return existingTile && tileLabelsEqual(existingTile.tileLabel, tileLabel)
         ? cloneTile(existingTile)
-        : { ...cell, tileId };
+        : { ...cell, tileLabel };
     });
 
     dispatchAddOrReplace(tiles, nextSelection);
@@ -332,7 +337,7 @@ export const usePixiEditorActions = ({
         selection().map((tile) => ({
           start: { x: tile.x, y: tile.y },
           end: { x: tile.x + delta.x, y: tile.y + delta.y },
-          tileId: tile.tileId,
+          tileLabel: tile.tileLabel,
           ...(tile.source ? { source: { ...tile.source } } : {}),
         })),
       );
@@ -357,7 +362,7 @@ export const usePixiEditorActions = ({
       layer.tiles.map((tile) => ({
         start: { x: tile.x, y: tile.y },
         end: { x: tile.x + delta.x, y: tile.y + delta.y },
-        tileId: tile.tileId,
+        tileLabel: tile.tileLabel,
         ...(tile.source ? { source: { ...tile.source } } : {}),
       })),
       layer.bounds
@@ -461,7 +466,7 @@ export const usePixiEditorActions = ({
     fillCellsFrom,
     findTileAt,
     getActiveTiles,
-    getBrushTileId,
+    getBrushTileLabel,
     getLayerBounds,
     getLayerResizeBounds,
     moveLayer,

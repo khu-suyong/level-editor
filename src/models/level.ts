@@ -5,12 +5,12 @@ import {
   GRID_SIZE_MAX,
   GRID_SIZE_MIN,
 } from '@/helpers/grid-size';
+import { getTileLabelKey } from '@/helpers/tile-label';
 
 const nonEmptyStringSchema = z.string().min(1);
 const tileNameSchema = z.string().trim().min(1);
 const finiteNumberSchema = z.number().finite();
 const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/u);
-const normalizeTileNameKey = (name: string) => name.trim().toLowerCase();
 
 export const TileIconSchema = z.enum([
   'star',
@@ -60,7 +60,6 @@ export const TileSourceSchema = RecognitionTileSourceSchema;
 
 export type TileMapping = z.infer<typeof TileMappingSchema>;
 export const TileMappingSchema = z.object({
-  tileId: z.number().int().nonnegative(),
   name: tileNameSchema,
   backgroundColor: hexColorSchema,
   icon: TileIconSchema,
@@ -77,7 +76,7 @@ export type TilePlacement = z.infer<typeof TilePlacementSchema>;
 export const TilePlacementSchema = z.object({
   x: z.number().int(),
   y: z.number().int(),
-  tileId: z.number().int().nonnegative(),
+  tileLabel: tileNameSchema,
   source: TileSourceSchema.optional(),
 });
 
@@ -154,26 +153,15 @@ export const LevelDataSchema = z
     layers: LevelLayerSchema.array(),
   })
   .superRefine((levelData, context) => {
-    const tileIds = new Set<number>();
-    const tileNames = new Set<string>();
+    const tileLabels = new Set<string>();
     const cvShapes = new Set<CvShape>();
     const layerIds = new Set<string>();
     const layerOrders = new Set<number>();
 
     for (const [tileIndex, tileMapping] of levelData.tileTable.entries()) {
-      if (tileIds.has(tileMapping.tileId)) {
-        context.addIssue({
-          code: 'custom',
-          message: 'tileTable tileId values must be unique.',
-          path: ['tileTable', tileIndex, 'tileId'],
-        });
-      }
+      const tileName = getTileLabelKey(tileMapping.name);
 
-      tileIds.add(tileMapping.tileId);
-
-      const tileName = normalizeTileNameKey(tileMapping.name);
-
-      if (tileName && tileNames.has(tileName)) {
+      if (tileName && tileLabels.has(tileName)) {
         context.addIssue({
           code: 'custom',
           message: 'tileTable name values must be unique.',
@@ -181,7 +169,7 @@ export const LevelDataSchema = z
         });
       }
 
-      tileNames.add(tileName);
+      tileLabels.add(tileName);
 
       for (const [shapeIndex, cvShape] of tileMapping.cvShapes.entries()) {
         if (cvShapes.has(cvShape)) {
@@ -220,11 +208,11 @@ export const LevelDataSchema = z
       const coordinates = new Set<string>();
 
       for (const [tileIndex, tile] of layer.tiles.entries()) {
-        if (!tileIds.has(tile.tileId)) {
+        if (!tileLabels.has(getTileLabelKey(tile.tileLabel))) {
           context.addIssue({
             code: 'custom',
-            message: 'Tile placement tileId must exist in tileTable.',
-            path: ['layers', layerIndex, 'tiles', tileIndex, 'tileId'],
+            message: 'Tile placement tileLabel must exist in tileTable.',
+            path: ['layers', layerIndex, 'tiles', tileIndex, 'tileLabel'],
           });
         }
 

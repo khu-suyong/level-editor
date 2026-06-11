@@ -10,6 +10,17 @@ import type {
 import { cloneTerrainExportTileLabels } from './terrain';
 
 export type LayerMoveDirection = 'up' | 'down';
+export type LayerRenameResult =
+  | {
+      changed: boolean;
+      layer: LevelLayer;
+      level: LevelData;
+      ok: true;
+    }
+  | {
+      error: string;
+      ok: false;
+    };
 
 const layerIdPrefix = 'layer';
 const layerNamePrefix = 'Layer';
@@ -161,6 +172,71 @@ export const moveLayerInLevel = (
   return {
     ...cloneLevelData(level),
     layers: assignDisplayLayerOrders(nextLayers),
+  };
+};
+
+export const renameLayerInLevel = (
+  level: LevelData,
+  layerId: string,
+  name: string,
+): LayerRenameResult => {
+  const nextName = name.trim();
+
+  if (!nextName) {
+    return {
+      ok: false,
+      error: '레이어 이름을 입력하세요.',
+    };
+  }
+
+  const currentLayer = level.layers.find((layer) => layer.id === layerId);
+
+  if (!currentLayer) {
+    return {
+      ok: false,
+      error: '레이어를 찾을 수 없습니다.',
+    };
+  }
+
+  const duplicateLayer = level.layers.find(
+    (layer) =>
+      layer.id !== layerId &&
+      normalizeLayerName(layer.name) === normalizeLayerName(nextName),
+  );
+
+  if (duplicateLayer) {
+    return {
+      ok: false,
+      error: '중복된 레이어 이름입니다.',
+    };
+  }
+
+  if (currentLayer.name === nextName) {
+    return {
+      ok: true,
+      changed: false,
+      level,
+      layer: currentLayer,
+    };
+  }
+
+  const nextLevel = cloneLevelData(level);
+  const nextLayer = nextLevel.layers.find((layer) => layer.id === layerId);
+
+  if (!nextLayer) {
+    return {
+      ok: false,
+      error: '레이어를 찾을 수 없습니다.',
+    };
+  }
+
+  nextLayer.name = nextName;
+
+  return {
+    ok: true,
+    changed: true,
+    level: nextLevel,
+    layer: nextLayer,
   };
 };
 

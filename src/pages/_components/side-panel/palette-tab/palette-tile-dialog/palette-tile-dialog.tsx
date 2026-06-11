@@ -47,7 +47,7 @@ type PaletteTileDialogProps = {
   confirmLabel: string;
   level: LevelData;
   tile: TileMapping;
-  originalTileId: number | null;
+  originalTileLabel: string | null;
   onClose: () => void;
   onSave: (tile: TileMapping) => void;
 };
@@ -149,7 +149,7 @@ export const PaletteTileDialog = (props: PaletteTileDialogProps) => {
     };
     const errors = validatePaletteTileUpdate(
       props.level,
-      props.originalTileId,
+      props.originalTileLabel,
       nextTile,
     );
 
@@ -191,23 +191,6 @@ export const PaletteTileDialog = (props: PaletteTileDialogProps) => {
         </>
       }
     >
-      <Box w={'100%'} gap={'xs'}>
-        <Box as={'label'} text={'caption'} c={'text.caption'}>
-          {'아이디'}
-        </Box>
-        <Input
-          type={'number'}
-          min={0}
-          value={String(draft().tileId)}
-          onInput={(event) =>
-            updateDraft({
-              tileId: Number.isNaN(event.currentTarget.valueAsNumber)
-                ? 0
-                : event.currentTarget.valueAsNumber,
-            })
-          }
-        />
-      </Box>
       <Box w={'100%'} gap={'xs'}>
         <Box as={'label'} text={'caption'} c={'text.caption'}>
           {'이름'}

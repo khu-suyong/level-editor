@@ -1,5 +1,5 @@
 import { computed, map } from 'nanostores';
-
+import { tileLabelsEqual } from '@/helpers/tile-label';
 import type {
   Cell,
   LayerBounds,
@@ -15,7 +15,7 @@ import { cloneTerrainExportTileLabels } from './terrain';
 export type TileMove = {
   start: Cell;
   end: Cell;
-  tileId: number;
+  tileLabel: string;
   source?: TilePlacement['source'];
 };
 
@@ -147,7 +147,7 @@ const cloneLayer = (layer: LevelLayer): LevelLayer => ({
 const cloneMove = (move: TileMove): TileMove => ({
   start: { ...move.start },
   end: { ...move.end },
-  tileId: move.tileId,
+  tileLabel: move.tileLabel,
   ...(move.source ? { source: { ...move.source } } : {}),
 });
 
@@ -180,7 +180,7 @@ const tilePlacementsEqual = (
       !!candidate &&
       tile.x === candidate.x &&
       tile.y === candidate.y &&
-      tile.tileId === candidate.tileId &&
+      tileLabelsEqual(tile.tileLabel, candidate.tileLabel) &&
       tile.source?.type === candidate.source?.type &&
       tile.source?.importId === candidate.source?.importId &&
       tile.source?.objectId === candidate.source?.objectId
@@ -362,7 +362,7 @@ export const applyHistoryAction = (
       ]),
       ...action.moves.map((move) => ({
         ...move.end,
-        tileId: move.tileId,
+        tileLabel: move.tileLabel,
         ...(move.source ? { source: { ...move.source } } : {}),
       })),
     ]),
@@ -378,14 +378,19 @@ export const revertHistoryAction = (
   }
 
   if (action.type === 'add-layer') {
-    const tileMappingIds = new Set(
-      action.tileMappings.map((tileMapping) => tileMapping.tileId),
+    const tileMappingLabels = new Set(
+      action.tileMappings.map((tileMapping) => tileMapping.name),
     );
 
     return {
       ...snapshot,
       tileTable: snapshot.tileTable
-        .filter((tileMapping) => !tileMappingIds.has(tileMapping.tileId))
+        .filter(
+          (tileMapping) =>
+            ![...tileMappingLabels].some((tileLabel) =>
+              tileLabelsEqual(tileMapping.name, tileLabel),
+            ),
+        )
         .map(cloneTileMapping),
       layers: snapshot.layers
         .filter((layer) => layer.id !== action.layer.id)
@@ -429,7 +434,7 @@ export const revertHistoryAction = (
       ]),
       ...action.moves.map((move) => ({
         ...move.start,
-        tileId: move.tileId,
+        tileLabel: move.tileLabel,
         ...(move.source ? { source: { ...move.source } } : {}),
       })),
     ]),

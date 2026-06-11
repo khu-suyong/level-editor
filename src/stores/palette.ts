@@ -1,5 +1,10 @@
 import { computed } from 'nanostores';
-
+import {
+  createUniqueTileLabel,
+  getTileLabelKey,
+  normalizeTileLabel,
+  tileLabelsEqual,
+} from '@/helpers/tile-label';
 import type {
   CvShape,
   LevelData,
@@ -35,16 +40,12 @@ export const TILE_ICON_PRESETS = [
 
 export const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/u;
 
-export const createDefaultTileName = (tileId: number) => `Tile ${tileId}`;
+export const normalizeTileName = normalizeTileLabel;
 
-export const normalizeTileName = (value: string) => value.trim();
+export const getTileNameKey = getTileLabelKey;
 
-export const getTileNameKey = (value: string) =>
-  normalizeTileName(value).toLowerCase();
-
-export const getTileDisplayName = (
-  tile: Pick<TileMapping, 'name' | 'tileId'>,
-) => normalizeTileName(tile.name) || createDefaultTileName(tile.tileId);
+export const getTileDisplayName = (tile: Pick<TileMapping, 'name'>) =>
+  normalizeTileName(tile.name);
 
 const backgroundColors = [
   '#2563eb',
@@ -156,23 +157,19 @@ export const normalizeCvShape = (value: string) => {
 export const isCvShape = (value: string): value is CvShape =>
   (CV_SHAPE_PRESETS as readonly string[]).includes(value);
 
-export const getNextTileId = (tileTable: readonly TileMapping[]) => {
-  if (tileTable.length === 0) {
-    return 0;
-  }
+export const getNextTileName = (tileTable: readonly TileMapping[]) =>
+  createUniqueTileLabel(tileTable.map((tile) => tile.name));
 
-  return Math.max(...tileTable.map((tile) => tile.tileId)) + 1;
-};
-
-export const sortPaletteTiles = (tileTable: readonly TileMapping[]) =>
-  [...tileTable].sort((first, second) => first.tileId - second.tileId);
+export const sortPaletteTiles = (tileTable: readonly TileMapping[]) => [
+  ...tileTable,
+];
 
 export const buildCvShapeMapping = (tileTable: readonly TileMapping[]) => {
-  const mapping = new Map<CvShape, number>();
+  const mapping = new Map<CvShape, string>();
 
   for (const tile of tileTable) {
     for (const shape of tile.cvShapes) {
-      mapping.set(shape, tile.tileId);
+      mapping.set(shape, tile.name);
     }
   }
 
@@ -189,11 +186,8 @@ export const createRandomPaletteTile = (
   tileTable: readonly TileMapping[],
   cvShapes: CvShape[] = [],
 ): TileMapping => {
-  const tileId = getNextTileId(tileTable);
-
   return {
-    tileId,
-    name: createDefaultTileName(tileId),
+    name: getNextTileName(tileTable),
     backgroundColor: randomItem(backgroundColors),
     icon: randomItem(TILE_ICON_PRESETS),
     iconColor: randomItem(iconColors),
@@ -207,21 +201,10 @@ export const createRandomPaletteTile = (
 
 export const validatePaletteTiles = (tileTable: readonly TileMapping[]) => {
   const errors: string[] = [];
-  const tileIds = new Set<number>();
   const tileNames = new Set<string>();
   const cvShapes = new Set<CvShape>();
 
   for (const tile of tileTable) {
-    if (!Number.isInteger(tile.tileId) || tile.tileId < 0) {
-      errors.push('Tile ID must be a non-negative integer.');
-    }
-
-    if (tileIds.has(tile.tileId)) {
-      errors.push(`Tile ID ${tile.tileId} is already used.`);
-    }
-
-    tileIds.add(tile.tileId);
-
     const tileName = normalizeTileName(tile.name);
     const tileNameKey = getTileNameKey(tile.name);
 
@@ -270,17 +253,17 @@ export const validatePaletteTiles = (tileTable: readonly TileMapping[]) => {
 
 export const validatePaletteTileUpdate = (
   level: LevelData,
-  originalTileId: number | null,
+  originalTileLabel: string | null,
   nextTile: TileMapping,
 ) => {
   const nextTileTable =
-    originalTileId === null
+    originalTileLabel === null
       ? [
           ...level.tileTable.map(clonePaletteTile),
           normalizePaletteTile(nextTile),
         ]
       : level.tileTable.map((tile) =>
-          tile.tileId === originalTileId
+          tileLabelsEqual(tile.name, originalTileLabel)
             ? normalizePaletteTile(nextTile)
             : clonePaletteTile(tile),
         );
@@ -298,33 +281,41 @@ export const addPaletteTileToLevel = (
 
 export const updatePaletteTileInLevel = (
   level: LevelData,
-  originalTileId: number,
+  originalTileLabel: string,
   nextTile: TileMapping,
-): LevelData => ({
-  ...cloneLevelData(level),
-  tileTable: sortPaletteTiles(
-    level.tileTable.map((tile) =>
-      tile.tileId === originalTileId
-        ? normalizePaletteTile(nextTile)
-        : clonePaletteTile(tile),
+): LevelData => {
+  const normalizedNextTile = normalizePaletteTile(nextTile);
+
+  return {
+    ...cloneLevelData(level),
+    tileTable: sortPaletteTiles(
+      level.tileTable.map((tile) =>
+        tileLabelsEqual(tile.name, originalTileLabel)
+          ? normalizedNextTile
+          : clonePaletteTile(tile),
+      ),
     ),
-  ),
-  layers: level.layers.map((layer) => ({
-    ...layer,
-    ...(layer.bounds ? { bounds: { ...layer.bounds } } : {}),
-    tiles: layer.tiles.map((tile) => ({
-      ...cloneTile(tile),
-      tileId: tile.tileId === originalTileId ? nextTile.tileId : tile.tileId,
+    layers: level.layers.map((layer) => ({
+      ...layer,
+      ...(layer.bounds ? { bounds: { ...layer.bounds } } : {}),
+      tiles: layer.tiles.map((tile) => ({
+        ...cloneTile(tile),
+        tileLabel: tileLabelsEqual(tile.tileLabel, originalTileLabel)
+          ? normalizedNextTile.name
+          : tile.tileLabel,
+      })),
     })),
-  })),
-});
+  };
+};
 
 export const deletePaletteTileFromLevel = (
   level: LevelData,
-  tileId: number,
-  replacementTileId: number | null,
+  tileLabel: string,
+  replacementTileLabel: string | null,
 ): LevelData => {
-  const deletedTile = level.tileTable.find((tile) => tile.tileId === tileId);
+  const deletedTile = level.tileTable.find((tile) =>
+    tileLabelsEqual(tile.name, tileLabel),
+  );
 
   if (!deletedTile) {
     return cloneLevelData(level);
@@ -332,11 +323,14 @@ export const deletePaletteTileFromLevel = (
 
   const deletedShapes = new Set(deletedTile.cvShapes);
   const nextTileTable = level.tileTable.flatMap((tile) => {
-    if (tile.tileId === tileId) {
+    if (tileLabelsEqual(tile.name, tileLabel)) {
       return [];
     }
 
-    if (replacementTileId !== null && tile.tileId === replacementTileId) {
+    if (
+      replacementTileLabel !== null &&
+      tileLabelsEqual(tile.name, replacementTileLabel)
+    ) {
       return [
         {
           ...clonePaletteTile(tile),
@@ -355,18 +349,18 @@ export const deletePaletteTileFromLevel = (
       ...layer,
       ...(layer.bounds ? { bounds: { ...layer.bounds } } : {}),
       tiles: layer.tiles.flatMap((tile) => {
-        if (tile.tileId !== tileId) {
+        if (!tileLabelsEqual(tile.tileLabel, tileLabel)) {
           return [cloneTile(tile)];
         }
 
-        if (replacementTileId === null) {
+        if (replacementTileLabel === null) {
           return [];
         }
 
         return [
           {
             ...cloneTile(tile),
-            tileId: replacementTileId,
+            tileLabel: replacementTileLabel,
           },
         ];
       }),

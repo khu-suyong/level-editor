@@ -9,7 +9,7 @@ import {
 } from 'pixi.js';
 import type { Accessor } from 'solid-js';
 import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
-
+import { tileLabelsEqual } from '@/helpers/tile-label';
 import type {
   Cell,
   LayerBounds,
@@ -40,7 +40,7 @@ import {
 type UsePixiSceneParams = {
   activeLayerResizeHandle: Accessor<LayerResizeHandle | null>;
   activeLayerId: Accessor<string>;
-  brushTileId: Accessor<number>;
+  brushTileLabel: Accessor<string>;
   clipboard: Accessor<{
     tiles: TilePlacement[];
   } | null>;
@@ -87,7 +87,6 @@ const LAYER_RESIZE_HANDLES: LayerResizeHandle[] = [
 ];
 
 const fallbackTile: TileMapping = {
-  tileId: 0,
   name: 'Tile 0',
   backgroundColor: '#2563eb',
   icon: 'star',
@@ -235,10 +234,11 @@ const paletteColorToHex = (color: string, fallback: number) => {
   return Number.parseInt(color.slice(1), 16);
 };
 
-const getTileStyle = (level: LevelData, tileId: number) => ({
+const getTileStyle = (level: LevelData, tileLabel: string) => ({
   ...fallbackTile,
-  ...(level.tileTable.find((tile) => tile.tileId === tileId) ?? {}),
-  tileId,
+  ...(level.tileTable.find((tile) => tileLabelsEqual(tile.name, tileLabel)) ??
+    {}),
+  name: tileLabel,
 });
 
 const clearContainer = (container: Container) => {
@@ -637,7 +637,7 @@ const drawLayerResizeHandles = (
 export const usePixiScene = ({
   activeLayerResizeHandle,
   activeLayerId,
-  brushTileId,
+  brushTileLabel,
   clipboard,
   contextMenu,
   dragDelta,
@@ -832,7 +832,7 @@ export const usePixiScene = ({
 
       for (const tile of layer.tiles) {
         const rect = getCellRect(tile, currentGridSize);
-        const tileStyle = getTileStyle(snapshot(), tile.tileId);
+        const tileStyle = getTileStyle(snapshot(), tile.tileLabel);
         const tileInset = 1;
         const tileSize = currentGridSize - tileInset * 2;
         const fillInset = tileInset + lineWidth;
@@ -915,7 +915,7 @@ export const usePixiScene = ({
     if (selectedTool() === 'brush') {
       const previewCells = paintPreviewCells();
       const cells = previewCells.length > 0 ? previewCells : hoverCell();
-      const tileStyle = getTileStyle(snapshot(), brushTileId());
+      const tileStyle = getTileStyle(snapshot(), brushTileLabel());
 
       for (const cell of Array.isArray(cells) ? cells : cells ? [cells] : []) {
         const rect = getCellRect(cell, currentGridSize);
@@ -957,7 +957,7 @@ export const usePixiScene = ({
         current.preview.addChild(
           drawErasePreviewTile(
             rect,
-            getTileStyle(snapshot(), tile.tileId),
+            getTileStyle(snapshot(), tile.tileLabel),
             lineWidth,
             currentGridSize,
           ),
@@ -981,7 +981,7 @@ export const usePixiScene = ({
       }
 
       const rect = getCellRect(targetCell, currentGridSize);
-      const tileStyle = getTileStyle(snapshot(), brushTileId());
+      const tileStyle = getTileStyle(snapshot(), brushTileLabel());
 
       current.preview.addChild(
         ...drawPlacementPreviewTile(
@@ -1013,7 +1013,7 @@ export const usePixiScene = ({
         },
         currentGridSize,
       );
-      const tileStyle = getTileStyle(snapshot(), tile.tileId);
+      const tileStyle = getTileStyle(snapshot(), tile.tileLabel);
 
       current.preview.addChild(
         ...drawPlacementPreviewTile(
@@ -1095,7 +1095,7 @@ export const usePixiScene = ({
         currentGridSize - 2,
         currentGridSize - 2,
       );
-      const tileStyle = getTileStyle(snapshot(), tile.tileId);
+      const tileStyle = getTileStyle(snapshot(), tile.tileLabel);
 
       if (delta && tileStyle.showBackground) {
         selectedTile.fill({

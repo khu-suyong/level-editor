@@ -20,6 +20,7 @@ import {
   shouldIgnoreShortcutEvent,
 } from '@/helpers/editor-shortcuts';
 import { clampGridSize, DEFAULT_GRID_SIZE } from '@/helpers/grid-size';
+import { tileLabelsEqual } from '@/helpers/tile-label';
 import { PixiViewport } from '../components/pixi-viewport';
 import type {
   LevelData,
@@ -29,7 +30,7 @@ import type {
 import {
   editorStore,
   setActiveLayerId,
-  setSelectedBrushTileId,
+  setSelectedBrushTileLabel,
   setSelectedLayerId,
   setSelectedTool,
   setSelection,
@@ -51,6 +52,7 @@ import {
   getLayerDeleteFallbackId,
   type LayerMoveDirection,
   moveLayerInLevel,
+  renameLayerInLevel,
   sortLayersForDisplay,
 } from '../stores/layers';
 import {
@@ -81,7 +83,6 @@ const defaultLevel: LevelData = {
   gridSize: DEFAULT_GRID_SIZE,
   tileTable: [
     {
-      tileId: 0,
       name: 'Tile 0',
       backgroundColor: '#2563eb',
       icon: 'star',
@@ -109,13 +110,13 @@ const defaultLevel: LevelData = {
       name: 'Base',
       order: 0,
       tiles: [
-        { x: 1, y: 1, tileId: 0 },
-        { x: 2, y: 1, tileId: 0 },
-        { x: 3, y: 1, tileId: 0 },
-        { x: 5, y: 3, tileId: 0 },
-        { x: 6, y: 3, tileId: 0 },
-        { x: 7, y: 3, tileId: 0 },
-        { x: 8, y: 3, tileId: 0 },
+        { x: 1, y: 1, tileLabel: 'Tile 0' },
+        { x: 2, y: 1, tileLabel: 'Tile 0' },
+        { x: 3, y: 1, tileLabel: 'Tile 0' },
+        { x: 5, y: 3, tileLabel: 'Tile 0' },
+        { x: 6, y: 3, tileLabel: 'Tile 0' },
+        { x: 7, y: 3, tileLabel: 'Tile 0' },
+        { x: 8, y: 3, tileLabel: 'Tile 0' },
       ],
     },
   ],
@@ -334,6 +335,19 @@ export default function HomePage() {
     replaceLevel(nextLevel);
     setSelection([]);
   };
+  const handleRenameLayer = (layerId: string, name: string) => {
+    const result = renameLayerInLevel(level(), layerId, name);
+
+    if (!result.ok) {
+      return result.error;
+    }
+
+    if (result.changed) {
+      replaceLevel(result.level);
+    }
+
+    return null;
+  };
   const handleDeleteLayer = (layerId: string) => {
     const currentLevel = level();
     const currentEditor = editor();
@@ -408,10 +422,10 @@ export default function HomePage() {
 
     return `structure 타입이 기존 팔레트 타일 "${pending.tile.name}"에 매핑되어 있습니다. 이 타일을 지형으로 바꿀까요?`;
   };
-  const convertStructureTileToTerrain = (tileId: number) => {
+  const convertStructureTileToTerrain = (tileLabel: string) => {
     const currentLevel = level();
-    const currentTile = currentLevel.tileTable.find(
-      (tile) => tile.tileId === tileId,
+    const currentTile = currentLevel.tileTable.find((tile) =>
+      tileLabelsEqual(tile.name, tileLabel),
     );
 
     if (!currentTile) {
@@ -419,7 +433,7 @@ export default function HomePage() {
     }
 
     replaceLevel(
-      updatePaletteTileInLevel(currentLevel, currentTile.tileId, {
+      updatePaletteTileInLevel(currentLevel, currentTile.name, {
         ...currentTile,
         isTerrain: true,
         terrainExportTileLabels:
@@ -440,7 +454,7 @@ export default function HomePage() {
       );
 
       if (convertToTerrain) {
-        convertStructureTileToTerrain(structureTile.tileId);
+        convertStructureTileToTerrain(structureTile.name);
       }
     }
 
@@ -502,15 +516,15 @@ export default function HomePage() {
 
   createEffect(() => {
     const currentLevel = level();
-    const selectedBrushTileId = editor().selectedBrushTileId;
+    const selectedBrushTileLabel = editor().selectedBrushTileLabel;
 
     if (
       currentLevel.tileTable.length > 0 &&
-      !currentLevel.tileTable.some(
-        (tile) => tile.tileId === selectedBrushTileId,
+      !currentLevel.tileTable.some((tile) =>
+        tileLabelsEqual(tile.name, selectedBrushTileLabel),
       )
     ) {
-      setSelectedBrushTileId(currentLevel.tileTable[0].tileId);
+      setSelectedBrushTileLabel(currentLevel.tileTable[0].name);
     }
   });
 
@@ -707,7 +721,7 @@ export default function HomePage() {
       <SidePanel
         activeLayerId={editor().activeLayerId}
         levelLoadPending={levelFileLoadPending()}
-        selectedBrushTileId={editor().selectedBrushTileId}
+        selectedBrushTileLabel={editor().selectedBrushTileLabel}
         selectedLayerId={editor().selectedLayerId}
         level={level()}
         onApplyLevel={handleApplyLevel}
@@ -716,23 +730,24 @@ export default function HomePage() {
         onExportUnrealLevel={handleExportUnrealLevel}
         onMoveLayer={handleMoveLayer}
         onOpenLevelFile={handleOpenLevelFile}
+        onRenameLayer={handleRenameLayer}
         onRenameLevel={handleRenameLevel}
         onSaveLevel={handleSaveLevel}
         onSelectActiveLayer={handleSelectLayer}
-        onSelectBrushTile={setSelectedBrushTileId}
+        onSelectBrushTile={setSelectedBrushTileLabel}
         onSelectLayerRect={handleSelectLayerRect}
       />
       <ToolPanel
         canUndo={undoAvailable()}
         canRedo={redoAvailable()}
         recognitionImportPending={recognitionUploadMutation.isPending}
-        selectedBrushTileId={editor().selectedBrushTileId}
+        selectedBrushTileLabel={editor().selectedBrushTileLabel}
         onOpenRecognitionImage={handleOpenRecognitionImage}
         onUndo={handleUndo}
         onRedo={handleRedo}
         selectedTool={editor().selectedTool}
         tileTable={level().tileTable}
-        onSelectBrushTile={setSelectedBrushTileId}
+        onSelectBrushTile={setSelectedBrushTileLabel}
         onSelectTool={setSelectedTool}
       />
       <PropertyPanel
